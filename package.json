@@ -1,7 +1,7 @@
 {
   "name": "mynimeku-dl",
-  "version": "1.0.0",
-  "description": "CLI tool & scraper to search, fetch, and download anime episodes and videos from MyNimeku and direct video streams.",
+  "version": "2.2.0",
+  "description": "Multi-source anime streaming & downloader with zero ads and local mini player.",
   "main": "src/index.js",
   "type": "module",
   "bin": {
