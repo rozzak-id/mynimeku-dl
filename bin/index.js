@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+const originalEmitWarning = process.emitWarning;
+process.emitWarning = (warning, ...args) => {
+  if (typeof warning === 'string' && warning.includes('NODE_TLS_REJECT_UNAUTHORIZED')) return;
+  if (warning?.message?.includes('NODE_TLS_REJECT_UNAUTHORIZED')) return;
+  return originalEmitWarning.call(process, warning, ...args);
+};
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 import { setupCommands } from '../src/cli/commands.js';
