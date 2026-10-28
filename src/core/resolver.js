@@ -40,8 +40,37 @@ export async function resolveVideoUrl(url, options = {}) {
     return await resolveHepidrive(url, referer);
   }
 
-  // 4. Generic direct video URL handler
+  // 4. Check if URL is from pixeldrain.com
+  if (url.includes('pixeldrain.com/u/')) {
+    return await resolvePixeldrain(url);
+  }
+
+  // 5. Generic direct video URL handler
   return await resolveGenericVideo(url);
+}
+
+/**
+ * Resolves Pixeldrain viewer page to direct file download API stream
+ * @param {string} pageUrl
+ */
+async function resolvePixeldrain(pageUrl) {
+  const match = pageUrl.match(/pixeldrain\.com\/u\/([a-zA-Z0-9_-]+)/);
+  if (!match) {
+    return await resolveGenericVideo(pageUrl);
+  }
+
+  const fileId = match[1];
+  const directApiUrl = `https://pixeldrain.com/api/file/${fileId}?download`;
+
+  const meta = await probeVideoMetadata(directApiUrl);
+
+  return {
+    directUrl: directApiUrl,
+    filename: meta.filename || `pixeldrain_${fileId}.mp4`,
+    fileSize: meta.fileSize || 0,
+    mimeType: meta.mimeType || 'video/mp4',
+    serverType: 'Pixeldrain'
+  };
 }
 
 /**
