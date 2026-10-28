@@ -7,11 +7,15 @@ export class BaseScraper {
    * @param {string} options.id - Unique provider identifier (e.g. 'mynimeku', 'otakudesu')
    * @param {string} options.name - Human-readable provider name
    * @param {string} options.baseUrl - Base website URL
+   * @param {'anime'|'mature'|'global'} [options.category='anime'] - Provider category / genre segment
+   * @param {string} [options.description=''] - Brief genre / provider focus description
    */
-  constructor({ id, name, baseUrl }) {
+  constructor({ id, name, baseUrl, category = 'anime', description = '' }) {
     this.id = id;
     this.name = name;
     this.baseUrl = baseUrl;
+    this.category = category;
+    this.description = description;
   }
 
   /**
@@ -40,7 +44,8 @@ export class BaseScraper {
    *   status?: string,
    *   rating?: string,
    *   genres?: string[],
-   *   provider: string
+   *   provider: string,
+   *   category: string
    * }>>}
    */
   async search(query) {
@@ -57,7 +62,8 @@ export class BaseScraper {
    *   thumbnail?: string,
    *   type?: string,
    *   status?: string,
-   *   provider: string
+   *   provider: string,
+   *   category: string
    * }>>}
    */
   async getLatestFeed() {
@@ -76,7 +82,8 @@ export class BaseScraper {
    *   status?: string,
    *   totalEpisodes?: string|number,
    *   episodes: Array<{ title: string, url: string, number: string|number }>,
-   *   provider: string
+   *   provider: string,
+   *   category: string
    * }>}
    */
   async getSeriesDetails(url) {
@@ -91,7 +98,10 @@ export class BaseScraper {
    *   seriesTitle?: string,
    *   episodeNumber?: string|number,
    *   downloads: Record<string, Array<{ server: string, url: string }>>,
-   *   provider: string
+   *   availableResolutions?: string[],
+   *   playerServers?: Array<{ host: string, type: string, url: string }>,
+   *   provider: string,
+   *   category: string
    * }>}
    */
   async getEpisodeDetails(url) {

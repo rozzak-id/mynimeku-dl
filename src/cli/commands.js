@@ -5,31 +5,44 @@ import {
   getAllProviders,
   getProvider,
   getDefaultProvider,
+  getProvidersByCategory,
   findProviderByUrl,
   searchAllProviders
 } from '../scrapers/index.js';
 import { resolveVideoUrl } from '../core/resolver.js';
 import { downloadVideo, sanitizeFilename } from '../downloader/videoDownloader.js';
+import { launchMiniPlayer } from '../player/miniPlayer.js';
 import { CONFIG } from '../config.js';
 
 export function setupCommands() {
   const program = new Command();
 
   program
-    .name('mynimeku-dl')
-    .description('CLI tool & multi-source scraper to search, scrape, and download anime episodes from multiple websites')
-    .version('2.0.0');
+    .name('animeku')
+    .description('CLI tool & multi-source anime streaming & downloader with zero ads')
+    .version('2.2.0');
 
   // Command: providers
   program
     .command('providers')
-    .description('Daftar website sumber anime yang didukung')
+    .description('Daftar website sumber anime yang didukung (dikelompokkan berdasarkan genre/kategori)')
     .action(() => {
       console.log(pc.bold(pc.cyan('\n🌐 Website Anime yang Didukung:\n')));
-      getAllProviders().forEach((p, i) => {
-        console.log(` ${i + 1}. ${pc.bold(pc.green(p.name))} ${pc.dim(`[id: ${p.id}]`)}`);
-        console.log(`    URL  : ${pc.cyan(p.baseUrl)}`);
+
+      console.log(pc.bold(pc.green('📺 [Kategori: Anime Umum & TV Series]')));
+      getProvidersByCategory('anime').forEach((p, i) => {
+        console.log(`  ${i + 1}. ${pc.bold(p.name)} ${pc.dim(`[id: ${p.id}]`)} — ${p.description || p.baseUrl}`);
+        console.log(`     URL: ${pc.cyan(p.baseUrl)}`);
       });
+
+      const mature = getProvidersByCategory('mature');
+      if (mature.length > 0) {
+        console.log(pc.bold(pc.red('\n🔞 [Kategori: Khusus Dewasa / 18+]')));
+        mature.forEach((p, i) => {
+          console.log(`  ${i + 1}. ${pc.bold(p.name)} ${pc.dim(`[id: ${p.id}]`)} — ${p.description || p.baseUrl}`);
+          console.log(`     URL: ${pc.cyan(p.baseUrl)}`);
+        });
+      }
       console.log();
     });
 
@@ -37,19 +50,19 @@ export function setupCommands() {
   program
     .command('search <keyword>')
     .description('Cari anime berdasarkan kata kunci judul')
-    .option('-p, --provider <provider>', 'Pilihan website provider (mynimeku, otakudesu, all)', 'all')
+    .option('-p, --provider <provider>', 'Pilihan website provider (mynimeku, otakudesu, samehadaku, gomunime, layaranime, nontonhentai, all)', 'all_anime')
     .action(async (keyword, options) => {
       try {
         const provChoice = options.provider.toLowerCase();
         let results = [];
 
-        if (provChoice === 'all') {
-          console.log(pc.cyan(`\n🔍 Mencari "${keyword}" di semua website...`));
-          results = await searchAllProviders(keyword);
+        if (provChoice === 'all_anime' || provChoice === 'all') {
+          console.log(pc.cyan(`\n🔍 Mencari "${keyword}" di website anime...`));
+          results = await searchAllProviders(keyword, provChoice === 'all' ? 'all' : 'anime');
         } else {
           const provider = getProvider(provChoice);
           if (!provider) {
-            console.error(pc.red(`Provider "${options.provider}" tidak ditemukan. Gunakan: 'mynimeku-dl providers'`));
+            console.error(pc.red(`Provider "${options.provider}" tidak ditemukan. Gunakan: 'animeku providers'`));
             return;
           }
           console.log(pc.cyan(`\n🔍 Mencari "${keyword}" di ${provider.name}...`));
@@ -61,14 +74,54 @@ export function setupCommands() {
           return;
         }
 
-        console.log(pc.green(`\n✔ Ditemukan ${results.length} anime:\n`));
+        console.log(pc.green(`\n✔ Ditemukan ${results.length} anime (rekomendasi terupdate di atas):\n`));
         results.forEach((item, i) => {
-          console.log(`${pc.bold(`${i + 1}. [${item.provider || 'Anime'}] ${item.title}`)}`);
+          const isOngoing = item.status?.toLowerCase().includes('ongoing') || item.status?.toLowerCase().includes('on-going');
+          const badge = isOngoing ? pc.bgGreen(pc.black(' ON-GOING ')) : pc.dim(`[${item.status || '-'}]`);
+          console.log(`${pc.bold(`${i + 1}. [${item.provider || 'Anime'}] ${item.title}`)} ${badge}`);
           console.log(`   URL: ${pc.cyan(item.url)}`);
-          console.log(`   Tipe: ${item.type || '-'} | Status: ${item.status || '-'} | Rating: ${item.rating || '-'}`);
+          if (item.rating) console.log(`   Rating: ${pc.yellow(`★ ${item.rating}`)} | Tipe: ${item.type || '-'}`);
           if (item.genres && item.genres.length > 0) console.log(`   Genre: ${item.genres.join(', ')}`);
           console.log();
         });
+      } catch (err) {
+        console.error(pc.red(`Error: ${err.message}`));
+      }
+    });
+
+  // Command: play / watch
+  program
+    .command('play <episodeUrl>')
+    .alias('watch')
+    .description('Nonton langsung anime di App Mini Player lokal bebas iklan 100%')
+    .option('-r, --res <resolution>', 'Pilihan resolusi (contoh: 1080P, 720P, 480P)', '720P')
+    .action(async (episodeUrl, options) => {
+      try {
+        const provider = findProviderByUrl(episodeUrl) || getDefaultProvider();
+        console.log(pc.cyan(`\n⏳ Mengambil data video dari ${provider.name}: ${episodeUrl}`));
+        const epData = await provider.getEpisodeDetails(episodeUrl);
+
+        const targetRes = options.res.toUpperCase();
+        let servers = epData.downloads[targetRes] || epData.downloads['720P'] || epData.downloads['480P'] || Object.values(epData.downloads)[0];
+
+        if (!servers || servers.length === 0) {
+          throw new Error('Tidak ada stream video yang tersedia untuk episode ini.');
+        }
+
+        const chosenServer = servers[0];
+        console.log(pc.cyan(`Menyiapkan stream dari server: ${chosenServer.server}`));
+        const resolved = await resolveVideoUrl(chosenServer.url);
+
+        console.log(pc.green(`\n🚀 Meluncurkan Mini Player Bebas Iklan di Browser...`));
+        const player = await launchMiniPlayer({
+          title: epData.title,
+          videoUrl: resolved.directUrl,
+          referer: chosenServer.url,
+          sourceName: provider.name,
+          resolution: targetRes
+        });
+
+        console.log(pc.yellow(`Player berjalan di ${player.url}. Tekan Ctrl+C untuk berhenti.`));
       } catch (err) {
         console.error(pc.red(`Error: ${err.message}`));
       }
@@ -80,7 +133,8 @@ export function setupCommands() {
     .description('Download video dari satu URL episode (auto-detect website)')
     .option('-r, --res <resolution>', 'Pilihan resolusi (contoh: 1080P, 720P, 480P, 360P)', '720P')
     .option('-o, --output <dir>', 'Direktori tujuan penyimpanan file')
-    .option('-s, --server <server>', 'Pilihan server (contoh: CLOUD, PRIVATE, HXFILE)', 'CLOUD')
+    .option('-s, --server <server>', 'Pilihan server (contoh: CLOUD, PRIVATE, HXFILE, GOFILE)', 'CLOUD')
+    .option('-y, --yes', 'Konfirmasi otomatis tanpa prompt Y/N')
     .action(async (episodeUrl, options) => {
       try {
         const provider = findProviderByUrl(episodeUrl) || getDefaultProvider();
@@ -94,7 +148,7 @@ export function setupCommands() {
 
         if (!servers || servers.length === 0) {
           console.log(pc.yellow(`Resolusi ${targetRes} tidak ditemukan. Menggunakan fallback...`));
-          const fallback = CONFIG.FALLBACK_RESOLUTIONS.find(r => epData.downloads[r] && epData.downloads[r].length > 0) || epData.availableResolutions[0];
+          const fallback = CONFIG.FALLBACK_RESOLUTIONS.find(r => epData.downloads[r] && epData.downloads[r].length > 0) || epData.availableResolutions?.[0];
           if (!fallback) {
             throw new Error('Tidak ada link download yang tersedia pada episode ini.');
           }
@@ -102,9 +156,7 @@ export function setupCommands() {
         }
 
         const chosenServer = servers.find(s => s.server.toUpperCase() === options.server.toUpperCase()) ||
-                             servers.find(s => s.server.toUpperCase() === 'CLOUD') ||
-                             servers.find(s => s.server.toUpperCase() === 'PRIVATE') ||
-                             servers.find(s => s.server.toUpperCase() === 'HXFILE') ||
+                             servers.find(s => ['CLOUD', 'PRIVATE', 'HXFILE', 'GOFILE'].includes(s.server.toUpperCase())) ||
                              servers[0];
 
         console.log(pc.cyan(`Menggunakan server: ${chosenServer.server}`));
@@ -169,15 +221,12 @@ export function setupCommands() {
               continue;
             }
 
-            const chosen = servers.find(s => s.server.toUpperCase() === 'CLOUD') ||
-                           servers.find(s => s.server.toUpperCase() === 'PRIVATE') ||
-                           servers.find(s => s.server.toUpperCase() === 'HXFILE') ||
-                           servers[0];
+            const chosen = servers.find(s => ['CLOUD', 'PRIVATE', 'HXFILE', 'GOFILE'].includes(s.server.toUpperCase())) || servers[0];
             const resolved = await resolveVideoUrl(chosen.url);
             const filename = sanitizeFilename(`${epData.title}_${targetRes}.mp4`);
 
             await downloadVideo(resolved.directUrl, {
-              outputDir: outDir,
+              outputDir,
               filename,
               referer: chosen.url
             });

@@ -2,6 +2,8 @@ import { mynimeku, MyNimekuScraper, searchAnime, getLatestAnimeFeed, getSeriesDe
 import { otakudesu, OtakudesuScraper } from './otakudesu.js';
 import { samehadaku, SamehadakuScraper } from './samehadaku.js';
 import { gomunime, GomunimeScraper } from './gomunime.js';
+import { layaranime, LayaranimeScraper } from './layaranime.js';
+import { nontonhentai, NontonHentaiScraper } from './nontonhentai.js';
 import { BaseScraper } from './baseScraper.js';
 
 export {
@@ -10,10 +12,14 @@ export {
   OtakudesuScraper,
   SamehadakuScraper,
   GomunimeScraper,
+  LayaranimeScraper,
+  NontonHentaiScraper,
   mynimeku,
   otakudesu,
   samehadaku,
   gomunime,
+  layaranime,
+  nontonhentai,
   searchAnime,
   getLatestAnimeFeed,
   getSeriesDetails,
@@ -28,6 +34,8 @@ registry.set(mynimeku.id, mynimeku);
 registry.set(otakudesu.id, otakudesu);
 registry.set(samehadaku.id, samehadaku);
 registry.set(gomunime.id, gomunime);
+registry.set(layaranime.id, layaranime);
+registry.set(nontonhentai.id, nontonhentai);
 
 /**
  * Register a new anime scraper provider
@@ -41,7 +49,7 @@ export function registerProvider(provider) {
 }
 
 /**
- * Get provider by its unique identifier (e.g. 'mynimeku', 'otakudesu', 'samehadaku', 'gomunime')
+ * Get provider by its unique identifier
  * @param {string} id
  * @returns {BaseScraper|undefined}
  */
@@ -55,6 +63,15 @@ export function getProvider(id) {
  */
 export function getAllProviders() {
   return Array.from(registry.values());
+}
+
+/**
+ * Get providers filtered by category ('anime', 'mature', 'global')
+ * @param {'anime'|'mature'|'global'} category
+ * @returns {BaseScraper[]}
+ */
+export function getProvidersByCategory(category = 'anime') {
+  return getAllProviders().filter(p => p.category === category);
 }
 
 /**
@@ -81,8 +98,9 @@ export function findProviderByUrl(url) {
 }
 
 /**
- * Search anime across all registered providers in parallel
+ * Search anime across providers in parallel with category filtering and smart sorting
  * @param {string} query
+ * @param {string} [categoryFilter='anime'] - Category to search ('anime', 'mature', or 'all')
  * @returns {Promise<Array<{
  *   title: string,
  *   url: string,
@@ -91,20 +109,36 @@ export function findProviderByUrl(url) {
  *   status?: string,
  *   rating?: string,
  *   genres?: string[],
- *   provider: string
+ *   provider: string,
+ *   category: string,
+ *   isLatest?: boolean
  * }>>}
  */
-export async function searchAllProviders(query) {
-  const providers = getAllProviders();
+export async function searchAllProviders(query, categoryFilter = 'anime') {
+  let providers = getAllProviders();
+  if (categoryFilter && categoryFilter !== 'all') {
+    providers = providers.filter(p => p.category === categoryFilter);
+  }
+
   const promises = providers.map(async (p) => {
     try {
       return await p.search(query);
-    } catch (err) {
-      // If one provider fails, don't crash others
+    } catch {
       return [];
     }
   });
 
   const results = await Promise.all(promises);
-  return results.flat();
+  const flattened = results.flat();
+
+  // Smart sort: Latest / On-Going updates on top, followed by rating
+  return flattened.sort((a, b) => {
+    const aOngoing = a.status?.toLowerCase().includes('ongoing') || a.status?.toLowerCase().includes('on-going') ? 1 : 0;
+    const bOngoing = b.status?.toLowerCase().includes('ongoing') || b.status?.toLowerCase().includes('on-going') ? 1 : 0;
+    if (bOngoing !== aOngoing) return bOngoing - aOngoing;
+
+    const aRating = parseFloat(a.rating) || 0;
+    const bRating = parseFloat(b.rating) || 0;
+    return bRating - aRating;
+  });
 }
