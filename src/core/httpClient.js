@@ -1,4 +1,10 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+import dns from 'node:dns';
 import { CONFIG } from '../config.js';
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {}
 
 /**
  * Perform a GET request with timeout and headers
@@ -13,8 +19,14 @@ export async function request(url, options = {}) {
     ? setTimeout(() => controller.abort(), timeout)
     : null;
 
+  let defaultReferer = CONFIG.BASE_URL;
+  try {
+    defaultReferer = new URL(url).origin + '/';
+  } catch {}
+
   const headers = {
     'User-Agent': CONFIG.USER_AGENT,
+    'Referer': defaultReferer,
     ...CONFIG.DEFAULT_HEADERS,
     ...(options.headers || {})
   };
@@ -42,10 +54,19 @@ export async function request(url, options = {}) {
  * @param {string} [referer]
  * @returns {Promise<string>}
  */
-export async function getHtml(url, referer = CONFIG.BASE_URL) {
+export async function getHtml(url, referer) {
+  let targetReferer = referer;
+  if (!targetReferer) {
+    try {
+      targetReferer = new URL(url).origin + '/';
+    } catch {
+      targetReferer = CONFIG.BASE_URL;
+    }
+  }
+
   const res = await request(url, {
     headers: {
-      'Referer': referer
+      'Referer': targetReferer
     }
   });
 

@@ -35,8 +35,56 @@ export async function resolveVideoUrl(url, options = {}) {
     return await resolveMyDriveKu(url, referer);
   }
 
-  // 3. Generic direct video URL handler
+  // 3. Check if URL is from hepidrive.com
+  if (url.includes('hepidrive.com')) {
+    return await resolveHepidrive(url, referer);
+  }
+
+  // 4. Generic direct video URL handler
   return await resolveGenericVideo(url);
+}
+
+/**
+ * Resolves Hepidrive intermediate download page to direct worker URL
+ * @param {string} pageUrl
+ * @param {string} [referer]
+ */
+async function resolveHepidrive(pageUrl, referer) {
+  const html = await getHtml(pageUrl, referer);
+  const $ = cheerio.load(html);
+
+  let directUrl = '';
+  $('a').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    if (href.includes('stream.php') || href.includes('download=1') || href.includes('ryuudrive')) {
+      directUrl = href;
+    }
+  });
+
+  if (!directUrl) {
+    throw new Error(`Tidak dapat menemukan tautan unduhan langsung di Hepidrive: ${pageUrl}`);
+  }
+
+  const meta = await probeVideoMetadata(directUrl, pageUrl);
+
+  let filename = meta.filename;
+  if (!filename) {
+    const pageTitle = $('title').text().trim().replace(/\s*-\s*Hepidrive.*$/i, '').trim();
+    if (pageTitle && pageTitle.toLowerCase().endsWith('.mp4')) {
+      filename = pageTitle;
+    } else {
+      filename = extractFilenameFromUrl(directUrl) || 'video.mp4';
+    }
+  }
+
+  return {
+    directUrl,
+    filename,
+    fileSize: meta.fileSize || 0,
+    mimeType: meta.mimeType || 'video/mp4',
+    serverType: 'Hepidrive',
+    referer: pageUrl
+  };
 }
 
 /**

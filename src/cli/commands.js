@@ -160,7 +160,7 @@ export function setupCommands() {
                              servers[0];
 
         console.log(pc.cyan(`Menggunakan server: ${chosenServer.server}`));
-        const resolved = await resolveVideoUrl(chosenServer.url);
+        const resolved = await resolveVideoUrl(chosenServer.url, { referer: episodeUrl });
 
         const outDir = options.output ? path.resolve(options.output) : CONFIG.DEFAULT_DOWNLOAD_DIR;
         const filename = sanitizeFilename(`${epData.title}_${targetRes}.mp4`);
@@ -168,7 +168,7 @@ export function setupCommands() {
         await downloadVideo(resolved.directUrl, {
           outputDir: outDir,
           filename,
-          referer: chosenServer.url
+          referer: resolved.referer || chosenServer.url
         });
       } catch (err) {
         console.error(pc.red(`Error: ${err.message}`));
@@ -222,13 +222,13 @@ export function setupCommands() {
             }
 
             const chosen = servers.find(s => ['CLOUD', 'PRIVATE', 'HXFILE', 'GOFILE'].includes(s.server.toUpperCase())) || servers[0];
-            const resolved = await resolveVideoUrl(chosen.url);
+            const resolved = await resolveVideoUrl(chosen.url, { referer: ep.url });
             const filename = sanitizeFilename(`${epData.title}_${targetRes}.mp4`);
 
             await downloadVideo(resolved.directUrl, {
               outputDir,
               filename,
-              referer: chosen.url
+              referer: resolved.referer || chosen.url
             });
           } catch (e) {
             console.error(pc.red(`Gagal episode ${ep.number}: ${e.message}`));

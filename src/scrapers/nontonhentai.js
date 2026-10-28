@@ -110,26 +110,39 @@ export class NontonHentaiScraper extends BaseScraper {
 
     const episodes = [];
 
-    // Check for episode links or single movie page
-    $('a[href*="/nonton-"], a[href*="/episode-"], .eplister a').each((_, el) => {
-      const $a = $(el);
+    // Episode list in .episodelist or .eplister
+    $('.episodelist ul li, .eplister ul li').each((_, el) => {
+      const $li = $(el);
+      const $a = $li.find('a').first();
       const epUrl = $a.attr('href') || '';
-      const epTitle = $a.text().trim().replace(/\s+/g, ' ');
 
-      if (epUrl && !episodes.some(e => e.url === epUrl)) {
+      // Only include valid episode links from nontonhentai.net
+      if (!epUrl || !epUrl.includes('nontonhentai.net') || epUrl.includes('/genres/')) return;
+
+      const epTitle = $li.find('h3, .playinfo h3').text().trim() || $a.text().trim().replace(/\s+/g, ' ');
+      const epMeta = $li.find('.playinfo span').text().trim();
+
+      let numMatch = epMeta.match(/eps?\s*(\d+)/i) || epTitle.match(/episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i);
+      const epNum = numMatch ? numMatch[1] : (episodes.length + 1).toString();
+      const date = epMeta.includes('-') ? epMeta.split('-').slice(1).join('-').trim() : '';
+
+      if (!episodes.some(e => e.url === epUrl)) {
         episodes.push({
-          title: epTitle || 'Episode 1',
+          title: epTitle || `Episode ${epNum}`,
           url: epUrl,
-          number: '1',
-          date: ''
+          number: epNum,
+          date
         });
       }
     });
 
+    // Sort episodes in ascending order
+    episodes.sort((a, b) => (parseFloat(a.number) || 0) - (parseFloat(b.number) || 0));
+
     // If single episode page
     if (episodes.length === 0) {
       episodes.push({
-        title: title || 'Full Episode (18+)',
+        title: title || 'Episode 1',
         url: seriesUrl,
         number: '1',
         date: ''
@@ -165,31 +178,59 @@ export class NontonHentaiScraper extends BaseScraper {
 
     /** @type {Record<string, Array<{ server: string, url: string }>>} */
     const downloads = {
+      '1080P': [],
       '720P': [],
-      '480P': []
+      '480P': [],
+      '360P': []
     };
 
-    $('iframe[src]').each((_, el) => {
-      const src = $(el).attr('src') || '';
-      if (src && !src.includes('facebook') && !src.includes('twitter')) {
-        downloads['720P'].push({
-          server: 'StreamServer (18+)',
-          url: src
-        });
-      }
+    // 1. Parse structured download boxes (e.g. Hepidrive, Lokal)
+    $('.soraddlx .soraurlx, .mctnx .soraurlx, .soraurlx').each((_, el) => {
+      const resText = $(el).find('strong').text().trim().toUpperCase();
+      let resKey = '720P';
+      if (resText.includes('1080')) resKey = '1080P';
+      else if (resText.includes('720')) resKey = '720P';
+      else if (resText.includes('480')) resKey = '480P';
+      else if (resText.includes('360')) resKey = '360P';
+
+      $(el).find('a').each((_, a) => {
+        const serverName = $(a).text().trim() || 'LOKAL';
+        const dlUrl = $(a).attr('href');
+        if (dlUrl && !downloads[resKey].some(s => s.url === dlUrl)) {
+          downloads[resKey].push({
+            server: serverName.toUpperCase(),
+            url: dlUrl
+          });
+        }
+      });
     });
 
-    $('.download a, .link-download a, a[href*="drive.google"], a[href*="mega.nz"]').each((_, a) => {
-      const $a = $(a);
-      const dlUrl = $a.attr('href') || '';
-      const text = $a.text().trim() || 'DownloadServer';
-      if (dlUrl) {
+    // 2. Generic download link fallback
+    $('.download a, .link-download a, a[href*="hepidrive"], a[href*="drive.google"], a[href*="mega.nz"]').each((_, a) => {
+      const dlUrl = $(a).attr('href') || '';
+      if (!dlUrl) return;
+      const serverName = $(a).text().trim() || 'LOKAL';
+      if (!downloads['720P'].some(s => s.url === dlUrl)) {
         downloads['720P'].push({
-          server: text,
+          server: serverName.toUpperCase(),
           url: dlUrl
         });
       }
     });
+
+    // 3. Fallback to stream embed if no direct downloads exist
+    const totalFound = Object.values(downloads).reduce((acc, curr) => acc + curr.length, 0);
+    if (totalFound === 0) {
+      $('iframe[src]').each((_, el) => {
+        const src = $(el).attr('src') || '';
+        if (src && !src.includes('facebook') && !src.includes('twitter')) {
+          downloads['720P'].push({
+            server: 'StreamServer',
+            url: src
+          });
+        }
+      });
+    }
 
     const availableResolutions = Object.keys(downloads).filter(r => downloads[r].length > 0);
 

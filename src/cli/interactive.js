@@ -501,7 +501,7 @@ async function handleDownloadWithConfirmation({ title, resolved, seriesTitle, se
   await downloadVideo(resolved.directUrl, {
     outputDir,
     filename,
-    referer: targetServer.url
+    referer: resolved.referer || targetServer.url
   });
 }
 
@@ -572,13 +572,13 @@ async function runBatchDownload(episodes, seriesTitle, provider) {
       const servers = epData.downloads[matchedRes];
       let chosen = servers.find(s => ['CLOUD', 'PRIVATE', 'HXFILE', 'GOFILE'].includes(s.server.toUpperCase())) || servers[0];
 
-      const resolved = await resolveVideoUrl(chosen.url);
+      const resolved = await resolveVideoUrl(chosen.url, { referer: ep.url });
       const filename = sanitizeFilename(`${epData.title}_${matchedRes}.mp4`);
 
       await downloadVideo(resolved.directUrl, {
         outputDir,
         filename,
-        referer: chosen.url
+        referer: resolved.referer || chosen.url
       });
 
       successCount++;

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 import { setupCommands } from '../src/cli/commands.js';
 import { runInteractive } from '../src/cli/interactive.js';
 
