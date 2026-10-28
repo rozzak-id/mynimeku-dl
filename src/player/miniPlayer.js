@@ -66,78 +66,86 @@ export async function launchMiniPlayer({ title, videoUrl, referer, sourceName = 
       }
 
       // Route: Main HTML5 Player Page
+      const cleanTitle = escapeHtml(title);
+      const cleanSource = escapeHtml(sourceName);
+      const cleanRes = escapeHtml(resolution);
+      const cleanUrl = videoUrl;
+
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>▶ Nonton: ${escapeHtml(title)} | Animeku</title>
+  <title>${cleanTitle} - Animeku</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #0b0e14;
-      color: #e2e8f0;
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #0f1115;
+      color: #e5e7eb;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px;
     }
-    .player-container {
+    .player-card {
       width: 100%;
-      max-width: 1040px;
-      background: #151a23;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      max-width: 980px;
+      background: #181b20;
+      border: 1px solid #282d37;
+      border-radius: 6px;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
     }
-    .header {
-      padding: 18px 24px;
+    .player-header {
+      padding: 14px 20px;
+      background: #13161a;
+      border-bottom: 1px solid #282d37;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      background: rgba(11, 14, 20, 0.4);
+      gap: 16px;
     }
-    .badge-group {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .badge {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 999px;
-      letter-spacing: 0.5px;
-    }
-    .badge-source { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
-    .badge-res { background: rgba(163, 230, 53, 0.15); color: #a3e635; border: 1px solid rgba(163, 230, 53, 0.3); }
-    .badge-no-ads { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
     .title {
-      font-size: 18px;
-      font-weight: 700;
-      color: #f8fafc;
+      font-size: 15px;
+      font-weight: 600;
+      color: #f3f4f6;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 650px;
     }
-    .video-wrapper {
+    .meta-tags {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .tag-source {
+      background: #232730;
+      color: #9ca3af;
+      border: 1px solid #323844;
+    }
+    .tag-res {
+      background: #0284c7;
+      color: #ffffff;
+    }
+    .video-viewport {
       position: relative;
       width: 100%;
-      padding-top: 56.25%; /* 16:9 Aspect Ratio */
-      background: #000;
+      padding-top: 56.25%;
+      background: #000000;
     }
     video {
       position: absolute;
@@ -147,127 +155,99 @@ export async function launchMiniPlayer({ title, videoUrl, referer, sourceName = 
       height: 100%;
       outline: none;
     }
-    .footer {
-      padding: 18px 24px;
+    .player-footer {
+      padding: 12px 20px;
+      background: #13161a;
+      border-top: 1px solid #282d37;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      background: rgba(11, 14, 20, 0.6);
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    .hint {
-      font-size: 13px;
-      color: #94a3b8;
-    }
-    .hint kbd {
-      background: #1e293b;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: monospace;
-      color: #e2e8f0;
-    }
-    .actions {
-      display: flex;
-      gap: 12px;
+      justify-content: flex-end;
+      gap: 10px;
     }
     .btn {
-      padding: 10px 18px;
+      padding: 8px 16px;
       font-size: 13px;
-      font-weight: 600;
-      border-radius: 12px;
+      font-weight: 500;
       text-decoration: none;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: none;
+      justify-content: center;
     }
-    .btn-download {
-      background: #a3e635;
-      color: #0f172a;
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
     }
-    .btn-download:hover {
-      background: #bef264;
-      transform: translateY(-1px);
+    .btn-primary:hover {
+      background: #1d4ed8;
     }
-    .btn-direct {
-      background: #1e293b;
-      color: #cbd5e1;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    .btn-secondary {
+      background: #232730;
+      color: #d1d5db;
+      border: 1px solid #323844;
     }
-    .btn-direct:hover {
-      background: #334155;
-      color: #fff;
+    .btn-secondary:hover {
+      background: #2c323e;
+      color: #ffffff;
     }
   </style>
 </head>
 <body>
-  <div class="player-container">
-    <div class="header">
-      <div class="title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
-      <div class="badge-group">
-        <span class="badge badge-source">${escapeHtml(sourceName)}</span>
-        <span class="badge badge-res">${escapeHtml(resolution)}</span>
-        <span class="badge badge-no-ads">🛡️ Bebas Iklan</span>
+  <div class="player-card">
+    <div class="player-header">
+      <div class="title" title="${cleanTitle}">${cleanTitle}</div>
+      <div class="meta-tags">
+        <span class="tag tag-source">${cleanSource}</span>
+        <span class="tag tag-res">${cleanRes}</span>
       </div>
     </div>
     
-    <div class="video-wrapper">
-      <video id="animePlayer" controls autoplay preload="auto">
+    <div class="video-viewport">
+      <video id="player" controls autoplay preload="auto">
         <source src="/stream" type="video/mp4">
-        <source src="${escapeHtml(videoUrl)}" type="video/mp4">
-        Browser Anda tidak mendukung HTML5 video.
+        <source src="${cleanUrl}" type="video/mp4">
       </video>
     </div>
 
-    <div class="footer">
-      <div class="hint">
-        💡 Pintasan: <kbd>Spasi</kbd> Jeda/Putar • <kbd>←</kbd> <kbd>→</kbd> Lompat 5s • <kbd>F</kbd> Layar Penuh
-      </div>
-      <div class="actions">
-        <a href="${escapeHtml(videoUrl)}" download class="btn btn-download">
-          📥 Download Video Ini
-        </a>
-        <a href="${escapeHtml(videoUrl)}" target="_blank" class="btn btn-direct">
-          🔗 Buka Direct Link
-        </a>
-      </div>
+    <div class="player-footer">
+      <a href="${cleanUrl}" target="_blank" class="btn btn-secondary">Direct Link</a>
+      <a href="${cleanUrl}" download class="btn btn-primary">Download Video</a>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const player = document.getElementById('animePlayer');
-    const streamUrl = '${videoUrl}';
+    const video = document.getElementById('player');
+    const streamUrl = '${cleanUrl}';
 
     if (streamUrl.includes('.m3u8')) {
       if (typeof Hls !== 'undefined' && Hls.isSupported()) {
         const hls = new Hls({ enableWorker: true });
         hls.loadSource(streamUrl);
-        hls.attachMedia(player);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          player.play().catch(() => {});
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+          video.play().catch(function() {});
         });
-      } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
-        player.src = streamUrl;
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
       }
     }
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', function(e) {
       if (e.code === 'Space') {
         e.preventDefault();
-        player.paused ? player.play() : player.pause();
+        video.paused ? video.play() : video.pause();
       } else if (e.code === 'ArrowRight') {
-        player.currentTime += 5;
+        video.currentTime += 5;
       } else if (e.code === 'ArrowLeft') {
-        player.currentTime -= 5;
+        video.currentTime -= 5;
       } else if (e.code === 'KeyF') {
         if (!document.fullscreenElement) {
-          player.requestFullscreen().catch(() => {});
+          video.requestFullscreen().catch(function() {});
         } else {
-          document.exitFullscreen().catch(() => {});
+          document.exitFullscreen().catch(function() {});
         }
       }
     });
@@ -300,9 +280,12 @@ export async function launchMiniPlayer({ title, videoUrl, referer, sourceName = 
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
+    .replace(/[()]/g, '')
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{25A0}-\u{25FF}]/gu, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/'/g, '&#039;')
+    .trim();
 }

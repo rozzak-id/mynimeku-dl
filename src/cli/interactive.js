@@ -477,7 +477,7 @@ async function processEpisodeAction(episodeUrl, seriesTitle, passedProvider) {
  * Handle Watch Video via local temporary ad-free mini player
  */
 async function handleWatchVideo({ title, videoUrl, referer, sourceName, resolution }) {
-  console.log(pc.green('\n🚀 Membuka Mini Player Bebas Iklan di Browser Anda...'));
+  console.log(pc.green('\nMembuka player di browser...'));
 
   const player = await launchMiniPlayer({
     title,
@@ -488,23 +488,21 @@ async function handleWatchVideo({ title, videoUrl, referer, sourceName, resoluti
   });
 
   console.log(pc.cyan(`
-╭─────────────────────────────────────────────────────────────╮
-│ 🎬 ${pc.bold('MINI PLAYER BERJALAN — BEBAS IKLAN 100%')}                 │
+┌─────────────────────────────────────────────────────────────┐
+│ ${pc.bold('MINI PLAYER')}                                                 │
 │                                                             │
 │ • URL Player : ${pc.bold(pc.yellow(player.url))}                          │
-│ • Judul      : ${pc.bold(truncate(title, 40))} │
+│ • Judul      : ${pc.bold(truncate(title, 42))} │
 │ • Resolusi   : ${pc.bold(pc.green(resolution))}                                     │
-│                                                             │
-│ 💡 ${pc.dim('Player telah dibuka otomatis di browser Anda.')}            │
-│    ${pc.dim('Tersedia juga tombol Download langsung di player.')}       │
-╰─────────────────────────────────────────────────────────────╯`));
+│ • Sumber     : ${pc.dim(sourceName)}                                      │
+└─────────────────────────────────────────────────────────────┘`));
 
   await input({
-    message: pc.yellow('Tekan [Enter] jika sudah selesai menonton untuk menutup player...')
+    message: pc.yellow('Tekan Enter jika sudah selesai menonton untuk menutup player...')
   });
 
   player.close();
-  console.log(pc.dim('Mini player telah dimatikan.'));
+  console.log(pc.dim('Mini player telah ditutup.'));
 }
 
 /**
