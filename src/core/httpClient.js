@@ -55,7 +55,7 @@ export async function request(url, options = {}) {
 }
 
 /**
- * Fetch HTML text
+ * Fetch HTML text with automatic retry on 403 Forbidden
  * @param {string} url
  * @param {string} [referer]
  * @returns {Promise<string>}
@@ -70,11 +70,23 @@ export async function getHtml(url, referer) {
     }
   }
 
-  const res = await request(url, {
+  let res = await request(url, {
     headers: {
       'Referer': targetReferer
     }
   });
+
+  // If blocked with 403, retry with mobile browser profile and clean referer
+  if (res.status === 403) {
+    try {
+      res = await request(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+          'Referer': ''
+        }
+      });
+    } catch {}
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to fetch HTML [${res.status} ${res.statusText}] from ${url}`);

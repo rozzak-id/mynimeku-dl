@@ -224,17 +224,43 @@ async function handleSearchKeyword(keyword) {
  * Handle Homepage Feed (Latest Updates)
  */
 async function handleHomepageFeed() {
-  const provider = activeProviderId === 'all_mature'
-    ? (getProvider('nontonhentai') || getProvider('nekopoi'))
-    : (activeProviderId.startsWith('all') ? getDefaultProvider() : (getProvider(activeProviderId) || getDefaultProvider()));
-  console.log(pc.cyan(`\n🔥 Mengambil daftar update anime terbaru dari ${provider.name}...`));
-
   let feed = [];
-  try {
-    feed = await provider.getLatestFeed();
-  } catch (err) {
-    console.log(pc.yellow(`Gagal memuat feed dari ${provider.name}: ${err.message}`));
-    return;
+
+  if (activeProviderId === 'all_mature') {
+    console.log(pc.cyan('\n🔥 Mengambil daftar update anime terbaru dari NontonHentai & NekoPoi...'));
+    const matureProviders = getProvidersByCategory('mature');
+    const results = await Promise.all(
+      matureProviders.map(async p => {
+        try {
+          return await p.getLatestFeed();
+        } catch {
+          return [];
+        }
+      })
+    );
+    feed = results.flat();
+  } else if (activeProviderId === 'all_anime' || activeProviderId === 'all') {
+    const defaultProv = getDefaultProvider();
+    console.log(pc.cyan(`\n🔥 Mengambil daftar update anime terbaru dari ${defaultProv.name}...`));
+    try {
+      feed = await defaultProv.getLatestFeed();
+    } catch {
+      const animeProv = getProvidersByCategory('anime').find(p => p.id !== defaultProv.id);
+      if (animeProv) {
+        try {
+          feed = await animeProv.getLatestFeed();
+        } catch {}
+      }
+    }
+  } else {
+    const provider = getProvider(activeProviderId) || getDefaultProvider();
+    console.log(pc.cyan(`\n🔥 Mengambil daftar update anime terbaru dari ${provider.name}...`));
+    try {
+      feed = await provider.getLatestFeed();
+    } catch (err) {
+      console.log(pc.yellow(`Gagal memuat feed dari ${provider.name}: ${err.message}`));
+      return;
+    }
   }
 
   if (feed.length === 0) {
