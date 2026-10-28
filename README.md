@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://github.com/rozzak-id/mynimeku-dl">
-  <img src="./assets/banner.jpg" alt="Animeku CLI Banner" width="100%">
+  <img src="./assets/banner.svg" alt="Animeku" width="100%">
 </a>
 
 # Animeku CLI
