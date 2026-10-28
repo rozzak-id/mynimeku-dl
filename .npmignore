@@ -1,0 +1,13 @@
+.git/
+.github/
+.vscode/
+.idea/
+.gemini/
+test*.js
+test/
+scratch/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db

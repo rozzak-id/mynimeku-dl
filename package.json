@@ -25,6 +25,24 @@
   ],
   "author": "Rozzak",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rozzak-id/mynimeku-dl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rozzak-id/mynimeku-dl/issues"
+  },
+  "homepage": "https://github.com/rozzak-id/mynimeku-dl#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "bin",
+    "src",
+    "assets/banner.svg",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@inquirer/prompts": "^7.3.2",
     "cheerio": "^1.0.0",

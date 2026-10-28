@@ -265,5 +265,37 @@ export function setupCommands() {
       }
     });
 
+  // Command: history / riwayat
+  program
+    .command('history')
+    .alias('riwayat')
+    .description('Lihat riwayat anime yang terakhir ditonton')
+    .option('-c, --clear', 'Hapus seluruh riwayat tontonan')
+    .action(async (options) => {
+      const { getHistory, clearHistory } = await import('../core/history.js');
+      if (options.clear) {
+        clearHistory();
+        console.log(pc.green('✔ Seluruh riwayat tontonan telah dihapus.'));
+        return;
+      }
+      const history = getHistory();
+      if (history.length === 0) {
+        console.log(pc.yellow('Belum ada riwayat tontonan tersimpan.'));
+        return;
+      }
+      console.log(pc.bold(pc.cyan(`\n🔖 Riwayat Tontonan Anime • ${history.length} anime tersimpan:\n`)));
+      history.forEach((h, i) => {
+        const timeStr = new Date(h.timestamp).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        console.log(`${pc.bold(`${i + 1}. ${h.seriesTitle}`)} ${pc.yellow(`Ep ${h.episodeNumber || '1'}`)} ${pc.dim(`• ${h.providerName || 'Anime'} • ${timeStr}`)}`);
+        console.log(`   URL: ${pc.cyan(h.episodeUrl)}`);
+      });
+      console.log();
+    });
+
   return program;
 }

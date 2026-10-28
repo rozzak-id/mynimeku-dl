@@ -13,9 +13,13 @@ import {
 import { resolveVideoUrl } from '../core/resolver.js';
 import { downloadVideo, sanitizeFilename } from '../downloader/videoDownloader.js';
 import { launchMiniPlayer } from '../player/miniPlayer.js';
+import { detectExternalPlayers, launchExternalPlayer } from '../player/externalPlayer.js';
+import { getHistory, getLatestWatched, saveWatchProgress, clearHistory } from '../core/history.js';
+import { checkForUpdate } from '../core/updater.js';
 import { CONFIG } from '../config.js';
 
 let activeProviderId = 'all_anime'; // 'all_anime', 'all', or provider id
+let updateNotice = null;
 
 export function showBanner() {
   console.clear();
@@ -45,6 +49,16 @@ export function showBanner() {
 
   console.log(pc.dim('   📡 Sumber Aktif : ') + sourceLabel);
   console.log(pc.dim(`   📁 Folder Unduh : ${CONFIG.DEFAULT_DOWNLOAD_DIR}`));
+
+  const latestWatched = getLatestWatched();
+  if (latestWatched) {
+    console.log(pc.dim('   🔖 Terakhir Nonton : ') + pc.bold(pc.white(truncate(latestWatched.seriesTitle, 32))) + pc.cyan(` Ep ${latestWatched.episodeNumber || '1'}`));
+  }
+
+  if (updateNotice && updateNotice.hasUpdate) {
+    console.log(pc.yellow(`   📢 Pembaruan Tersedia : v${updateNotice.latestVersion} — Jalankan git pull`));
+  }
+
   console.log(pc.cyan('  ' + '═'.repeat(63) + '\n'));
 }
 
@@ -63,6 +77,11 @@ function truncate(str, maxLen = 65) {
  * Main interactive CLI loop
  */
 export async function runInteractive() {
+  // Check for updates asynchronously without blocking startup
+  checkForUpdate('2.2.0').then(info => {
+    if (info.hasUpdate) updateNotice = info;
+  });
+
   showBanner();
 
   while (true) {
@@ -73,10 +92,11 @@ export async function runInteractive() {
       console.log(pc.dim(' • Tempelkan ') + pc.bold(pc.white('link URL')) + pc.dim(' episode/series website manapun.'));
       console.log(pc.dim(' • Tekan ') + pc.bold(pc.green('[Enter]')) + pc.dim(' tanpa mengetik untuk membuka anime Beranda terbaru.'));
       console.log(pc.dim(' • Ketik ') + pc.bold(pc.magenta(':sumber')) + pc.dim(' untuk memilih kategori & website anime.'));
+      console.log(pc.dim(' • Ketik ') + pc.bold(pc.cyan(':riwayat')) + pc.dim(' untuk melihat riwayat tontonan terakhir.'));
       console.log(pc.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
 
       const query = await input({
-        message: pc.bold('🔍 Cari anime / URL / :sumber / Beranda:')
+        message: pc.bold('🔍 Cari anime / URL / :sumber / :riwayat / Beranda:')
       });
 
       const trimmed = query.trim();
@@ -84,6 +104,13 @@ export async function runInteractive() {
       // Command: change provider source
       if (trimmed.toLowerCase() === ':sumber' || trimmed.toLowerCase() === ':source' || trimmed.toLowerCase() === ':s') {
         await handleSwitchSource();
+        showBanner();
+        continue;
+      }
+
+      // Command: view watch history
+      if (trimmed.toLowerCase() === ':riwayat' || trimmed.toLowerCase() === ':history' || trimmed.toLowerCase() === ':h') {
+        await handleWatchHistory();
         showBanner();
         continue;
       }
@@ -162,6 +189,93 @@ async function handleSwitchSource() {
 
   activeProviderId = selected;
   console.log(pc.green(`✔ Sumber berhasil diubah ke: ${activeProviderId === 'all_anime' ? 'Semua Anime' : activeProviderId === 'all_mature' ? 'Semua Dewasa 18+' : getProvider(activeProviderId)?.name}\n`));
+}
+
+/**
+ * Handle Viewing and Resuming from Watch History
+ */
+async function handleWatchHistory() {
+  const history = getHistory();
+  if (history.length === 0) {
+    console.log(pc.yellow('\nBelum ada riwayat tontonan yang tersimpan.'));
+    await input({ message: pc.dim('Tekan Enter untuk kembali...') });
+    return;
+  }
+
+  console.log(pc.cyan(`\n🔖 Riwayat Tontonan • ${history.length} anime tersimpan:`));
+
+  const choices = history.map((h) => {
+    const timeStr = new Date(h.timestamp).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return {
+      name: `${pc.bold(truncate(h.seriesTitle, 35))} ➔ ${pc.yellow(`Ep ${h.episodeNumber || '1'}`)} ${pc.dim(`• ${h.providerName || 'Anime'} • ${timeStr}`)}`,
+      value: h
+    };
+  });
+
+  choices.push({
+    name: pc.red('🗑️  Hapus Semua Riwayat'),
+    value: 'clear_all'
+  });
+  choices.push({
+    name: pc.dim('⬅  Kembali ke Menu Utama'),
+    value: 'cancel'
+  });
+
+  const selected = await select({
+    message: 'Pilih anime untuk melanjutkan:',
+    choices,
+    pageSize: 8
+  });
+
+  if (selected === 'cancel') return;
+
+  if (selected === 'clear_all') {
+    const confirmClear = await confirm({
+      message: 'Yakin ingin menghapus seluruh riwayat tontonan?',
+      default: false
+    });
+    if (confirmClear) {
+      clearHistory();
+      console.log(pc.green('✔ Seluruh riwayat tontonan berhasil dihapus.'));
+    }
+    return;
+  }
+
+  // Selected a history item
+  const action = await select({
+    message: `Pilihan untuk ${selected.seriesTitle}:`,
+    choices: [
+      {
+        name: `▶️  Putar Episode ${selected.episodeNumber || '1'} Langsung`,
+        value: 'play_same'
+      },
+      {
+        name: `📚  Lihat Semua Episode Serial Ini`,
+        value: 'open_series'
+      },
+      {
+        name: pc.dim('⬅  Kembali'),
+        value: 'back'
+      }
+    ]
+  });
+
+  if (action === 'back') return;
+
+  if (action === 'play_same') {
+    await processEpisodeAction(selected.episodeUrl, selected.seriesTitle);
+  } else if (action === 'open_series') {
+    if (selected.seriesUrl) {
+      await processSeriesSelection(selected.seriesUrl);
+    } else {
+      await processEpisodeAction(selected.episodeUrl, selected.seriesTitle);
+    }
+  }
 }
 
 /**
@@ -431,37 +545,88 @@ async function processEpisodeAction(episodeUrl, seriesTitle, passedProvider) {
     }
   }
 
-  // Choose Action: Nonton Langsung vs Download
+  // Detect available external players (MPV, VLC)
+  const externalPlayers = detectExternalPlayers();
+  const actionChoices = [
+    {
+      name: `▶️  ${pc.bold(pc.green('Nonton di Browser Flat UI'))}`,
+      value: 'watch_browser'
+    }
+  ];
+
+  for (const epPlayer of externalPlayers) {
+    actionChoices.push({
+      name: `🎬  ${pc.bold(pc.magenta(`Nonton di ${epPlayer.name}`))}`,
+      value: `watch_${epPlayer.id}`
+    });
+  }
+
+  actionChoices.push(
+    {
+      name: `📥  ${pc.bold(pc.cyan('Download Video'))}`,
+      value: 'download'
+    },
+    {
+      name: pc.dim('⬅  Kembali ke Menu'),
+      value: 'back'
+    }
+  );
+
   const userAction = await select({
     message: 'Mau Nonton Langsung atau Download?',
-    choices: [
-      {
-        name: `▶️  ${pc.bold(pc.green('Nonton Langsung'))}`,
-        value: 'watch'
-      },
-      {
-        name: `📥  ${pc.bold(pc.cyan('Download Video'))}`,
-        value: 'download'
-      },
-      {
-        name: pc.dim('⬅  Kembali ke Menu'),
-        value: 'back'
-      }
-    ],
+    choices: actionChoices,
     pageSize: 8
   });
 
   if (userAction === 'back') return;
 
-  if (userAction === 'watch') {
-    await handleWatchVideo({
-      title: epData.title,
-      videoUrl: resolved.directUrl,
-      referer: targetServer.url,
-      sourceName: provider.name,
+  if (userAction.startsWith('watch')) {
+    saveWatchProgress({
+      seriesTitle: seriesTitle || epData.title,
+      seriesUrl: epData.seriesUrl,
+      episodeTitle: epData.title,
+      episodeNumber: epData.episodeNumber,
+      episodeUrl,
+      providerId: provider.id,
+      providerName: provider.name,
       resolution: selectedRes
     });
+
+    if (userAction === 'watch_browser') {
+      await handleWatchVideo({
+        title: epData.title,
+        videoUrl: resolved.directUrl,
+        referer: targetServer.url,
+        sourceName: provider.name,
+        resolution: selectedRes
+      });
+    } else if (userAction === 'watch_mpv') {
+      console.log(pc.green(`\nMeluncurkan MPV Player...`));
+      launchExternalPlayer('mpv', {
+        videoUrl: resolved.directUrl,
+        title: epData.title,
+        referer: targetServer.url
+      });
+    } else if (userAction === 'watch_vlc') {
+      console.log(pc.green(`\nMeluncurkan VLC Media Player...`));
+      launchExternalPlayer('vlc', {
+        videoUrl: resolved.directUrl,
+        title: epData.title,
+        referer: targetServer.url
+      });
+    }
   } else {
+    saveWatchProgress({
+      seriesTitle: seriesTitle || epData.title,
+      seriesUrl: epData.seriesUrl,
+      episodeTitle: epData.title,
+      episodeNumber: epData.episodeNumber,
+      episodeUrl,
+      providerId: provider.id,
+      providerName: provider.name,
+      resolution: selectedRes
+    });
+
     await handleDownloadWithConfirmation({
       title: epData.title,
       resolved,
