@@ -11,7 +11,7 @@ export class NontonHentaiScraper extends BaseScraper {
       name: 'NontonHentai',
       baseUrl: NONTONHENTAI_DEFAULT_URL,
       category: 'mature',
-      description: 'Khusus Dewasa (18+ / Hentai Subtitle Indonesia)'
+      description: 'Khusus Dewasa 18+ Sub Indo'
     });
   }
 

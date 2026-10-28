@@ -33,7 +33,7 @@ export function showBanner() {
 
   let sourceLabel = '';
   if (activeProviderId === 'all_anime') {
-    sourceLabel = pc.green('🌐 Semua Sumber Anime Umum (MyNimeku, Otakudesu, Samehadaku, Gomunime, LayarAnime)');
+    sourceLabel = pc.green('🌐 Semua Sumber Anime');
   } else if (activeProviderId === 'all') {
     sourceLabel = pc.yellow('🌟 Semua Sumber Keseluruhan');
   } else {
@@ -130,7 +130,7 @@ async function handleSwitchSource() {
 
   const choices = [
     {
-      name: `🌐 ${pc.bold(pc.green('Semua Sumber Anime Umum'))} ${pc.dim('(Cari lintas website anime - Rekomendasi)')}`,
+      name: `🌐 ${pc.bold(pc.green('Semua Sumber Anime'))}`,
       value: 'all_anime'
     },
     ...animeProviders.map(p => ({
@@ -182,7 +182,7 @@ async function handleSearchKeyword(keyword) {
     return;
   }
 
-  console.log(pc.green(`✔ Ditemukan ${results.length} hasil (rekomendasi terupdate di atas):\n`));
+  console.log(pc.green(`✔ Ditemukan ${results.length} hasil:\n`));
 
   const choices = results.map((item) => {
     const isOngoing = item.status?.toLowerCase().includes('ongoing') || item.status?.toLowerCase().includes('on-going');
@@ -234,7 +234,7 @@ async function handleHomepageFeed() {
   console.log(pc.green(`✔ Ditemukan ${feed.length} anime yang baru rilis / update:\n`));
 
   const choices = feed.map(item => ({
-    name: `${pc.cyan(`[${item.type || 'TV'}]`)} ${pc.bold(truncate(item.title, 40))} ➔ ${pc.yellow(item.latestEpisode)} ${pc.dim(`(${item.status || 'Active'})`)}`,
+    name: `${pc.cyan(`[${item.type || 'TV'}]`)} ${pc.bold(truncate(item.title, 40))} ➔ ${pc.yellow(item.latestEpisode)} ${pc.dim(item.status ? `• ${item.status}` : '')}`,
     value: item.seriesUrl || item.episodeUrl
   }));
 
@@ -280,13 +280,13 @@ async function processSeriesSelection(seriesUrl) {
 
   // Episode choices
   const epChoices = series.episodes.map(ep => ({
-    name: `${pc.cyan(`[Ep ${ep.number}]`)} ${truncate(ep.title, 55)} ${ep.date ? pc.dim(`(${ep.date})`) : ''}`,
+    name: `${pc.cyan(`[Ep ${ep.number}]`)} ${truncate(ep.title, 55)} ${ep.date ? pc.dim(`• ${ep.date}`) : ''}`,
     value: ep.url
   }));
 
   // Option for batch download
   epChoices.unshift({
-    name: pc.bold(pc.yellow(`📦 [BATCH DOWNLOAD] Unduh Semua Episode (${series.episodes.length} Episode)`)),
+    name: pc.bold(pc.yellow(`📦 Unduh Semua Episode • ${series.episodes.length} Episode`)),
     value: 'batch_all'
   });
 
@@ -334,7 +334,7 @@ async function processEpisodeAction(episodeUrl, seriesTitle, passedProvider) {
 
   // Select resolution
   const resChoices = epData.availableResolutions.map(res => ({
-    name: `${pc.bold(res)} (${epData.downloads[res]?.length || 0} server)`,
+    name: `${pc.bold(res)} • ${epData.downloads[res]?.length || 0} server`,
     value: res
   }));
 
@@ -358,11 +358,9 @@ async function processEpisodeAction(episodeUrl, seriesTitle, passedProvider) {
     const serverChoice = await select({
       message: `Pilih server untuk resolusi ${selectedRes}:`,
       choices: availableServers.map(s => {
-        const isRecommended = ['CLOUD', 'PRIVATE', 'HXFILE', 'ZIPPY', 'RACATY', 'GOFILE'].includes(s.server.toUpperCase());
-        const badge = isRecommended ? pc.green('(Rekomendasi)') : pc.yellow('(External)');
         const sizeInfo = s.size ? pc.dim(` [${s.size}]`) : '';
         return {
-          name: `${pc.bold(s.server)}${sizeInfo} ${badge}`,
+          name: `${pc.bold(s.server)}${sizeInfo}`,
           value: s
         };
       }),
@@ -392,11 +390,11 @@ async function processEpisodeAction(episodeUrl, seriesTitle, passedProvider) {
     message: 'Mau Nonton Langsung atau Download?',
     choices: [
       {
-        name: `▶️  ${pc.bold(pc.green('Nonton Langsung (App Mini Player - Bebas Iklan 100%)'))}`,
+        name: `▶️  ${pc.bold(pc.green('Nonton Langsung'))}`,
         value: 'watch'
       },
       {
-        name: `📥  ${pc.bold(pc.cyan('Download Video (Simpan ke Laptop)'))}`,
+        name: `📥  ${pc.bold(pc.cyan('Download Video'))}`,
         value: 'download'
       },
       {
@@ -481,7 +479,7 @@ async function handleDownloadWithConfirmation({ title, resolved, seriesTitle, se
 │ 📥 ${pc.bold('KONFIRMASI UNDUHAN')}                                     │
 │                                                             │
 │ • Judul     : ${pc.bold(truncate(title, 42))} │
-│ • Sumber    : ${pc.bold(providerName)} (${targetServer.server})                     │
+│ • Sumber    : ${pc.bold(providerName)} • ${pc.cyan(targetServer.server)} │
 │ • Resolusi  : ${pc.bold(pc.green(selectedRes))}                                     │
 │ • Folder    : ${pc.dim(truncate(outputDir, 42))} │
 │ • Nama File : ${pc.yellow(truncate(filename, 42))} │
@@ -517,10 +515,10 @@ async function runBatchDownload(episodes, seriesTitle, provider) {
   const resPreference = await select({
     message: 'Pilih resolusi video untuk seluruh batch:',
     choices: [
-      { name: '720P (Direkomendasikan - Kualitas jernih, ukuran pas)', value: '720P' },
-      { name: '1080P (Full HD - Kualitas maksimal)', value: '1080P' },
-      { name: '480P (Hemat kuota & cepat)', value: '480P' },
-      { name: '360P (Paling hemat)', value: '360P' }
+      { name: '720P', value: '720P' },
+      { name: '1080P', value: '1080P' },
+      { name: '480P', value: '480P' },
+      { name: '360P', value: '360P' }
     ],
     pageSize: 8
   });
@@ -620,7 +618,7 @@ async function handleDirectUrlInput(targetUrl) {
     const resolved = await resolveVideoUrl(targetUrl);
     
     const confirmDl = await confirm({
-      message: `Download video langsung (${resolved.filename})?`,
+      message: `Download video: ${resolved.filename}?`,
       default: true
     });
 

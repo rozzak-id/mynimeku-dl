@@ -25,7 +25,7 @@ export function setupCommands() {
   // Command: providers
   program
     .command('providers')
-    .description('Daftar website sumber anime yang didukung (dikelompokkan berdasarkan genre/kategori)')
+    .description('Daftar website sumber anime yang didukung')
     .action(() => {
       console.log(pc.bold(pc.cyan('\n🌐 Website Anime yang Didukung:\n')));
 
@@ -50,7 +50,7 @@ export function setupCommands() {
   program
     .command('search <keyword>')
     .description('Cari anime berdasarkan kata kunci judul')
-    .option('-p, --provider <provider>', 'Pilihan website provider (mynimeku, otakudesu, samehadaku, gomunime, layaranime, nontonhentai, all)', 'all_anime')
+    .option('-p, --provider <provider>', 'Pilihan website provider: mynimeku, otakudesu, samehadaku, gomunime, layaranime, nontonhentai, all', 'all_anime')
     .action(async (keyword, options) => {
       try {
         const provChoice = options.provider.toLowerCase();
@@ -74,7 +74,7 @@ export function setupCommands() {
           return;
         }
 
-        console.log(pc.green(`\n✔ Ditemukan ${results.length} anime (rekomendasi terupdate di atas):\n`));
+        console.log(pc.green(`\n✔ Ditemukan ${results.length} anime:\n`));
         results.forEach((item, i) => {
           const isOngoing = item.status?.toLowerCase().includes('ongoing') || item.status?.toLowerCase().includes('on-going');
           const badge = isOngoing ? pc.bgGreen(pc.black(' ON-GOING ')) : pc.dim(`[${item.status || '-'}]`);
@@ -93,8 +93,8 @@ export function setupCommands() {
   program
     .command('play <episodeUrl>')
     .alias('watch')
-    .description('Nonton langsung anime di App Mini Player lokal bebas iklan 100%')
-    .option('-r, --res <resolution>', 'Pilihan resolusi (contoh: 1080P, 720P, 480P)', '720P')
+    .description('Nonton langsung anime di App Mini Player lokal')
+    .option('-r, --res <resolution>', 'Pilihan resolusi: 1080P, 720P, 480P', '720P')
     .action(async (episodeUrl, options) => {
       try {
         const provider = findProviderByUrl(episodeUrl) || getDefaultProvider();
@@ -130,10 +130,10 @@ export function setupCommands() {
   // Command: download
   program
     .command('download <episodeUrl>')
-    .description('Download video dari satu URL episode (auto-detect website)')
-    .option('-r, --res <resolution>', 'Pilihan resolusi (contoh: 1080P, 720P, 480P, 360P)', '720P')
+    .description('Download video dari satu URL episode')
+    .option('-r, --res <resolution>', 'Pilihan resolusi: 1080P, 720P, 480P, 360P', '720P')
     .option('-o, --output <dir>', 'Direktori tujuan penyimpanan file')
-    .option('-s, --server <server>', 'Pilihan server (contoh: CLOUD, PRIVATE, HXFILE, GOFILE)', 'CLOUD')
+    .option('-s, --server <server>', 'Pilihan server: CLOUD, PRIVATE, HXFILE, GOFILE', 'CLOUD')
     .option('-y, --yes', 'Konfirmasi otomatis tanpa prompt Y/N')
     .action(async (episodeUrl, options) => {
       try {
@@ -178,8 +178,8 @@ export function setupCommands() {
   // Command: batch
   program
     .command('batch <seriesUrl>')
-    .description('Batch download seluruh / rentang episode dari satu serial anime (auto-detect website)')
-    .option('-r, --res <resolution>', 'Pilihan resolusi (1080P, 720P, 480P, 360P)', '720P')
+    .description('Batch download episode dari satu serial anime')
+    .option('-r, --res <resolution>', 'Pilihan resolusi: 1080P, 720P, 480P, 360P', '720P')
     .option('--from <number>', 'Mulai dari episode ke-', '1')
     .option('--to <number>', 'Hingga episode ke-')
     .option('-o, --output <dir>', 'Direktori tujuan penyimpanan file')
@@ -246,7 +246,7 @@ export function setupCommands() {
   // Command: direct
   program
     .command('direct <videoUrl>')
-    .description('Download video dari direct URL (MP4 / WebM / Stream)')
+    .description('Download video dari direct URL')
     .option('-o, --output <filename>', 'Nama file output')
     .option('-d, --dir <dir>', 'Direktori output')
     .action(async (videoUrl, options) => {
