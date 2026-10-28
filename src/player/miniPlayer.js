@@ -192,6 +192,38 @@ export async function launchMiniPlayer({ title, videoUrl, referer, sourceName = 
       background: #2c323e;
       color: #ffffff;
     }
+    @media (max-width: 640px) {
+      body {
+        padding: 8px;
+      }
+      .player-card {
+        border-radius: 4px;
+      }
+      .player-header {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .title {
+        font-size: 13px;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .player-footer {
+        padding: 10px 12px;
+        gap: 8px;
+      }
+      .player-footer .btn {
+        flex: 1;
+        text-align: center;
+        font-size: 12px;
+        padding: 10px 8px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -260,9 +292,12 @@ export async function launchMiniPlayer({ title, videoUrl, referer, sourceName = 
       const port = server.address().port;
       const playerUrl = `http://localhost:${port}`;
 
-      // Open in default browser on Windows / Mac / Linux
+      // Open in default browser on Windows, Mac, Linux, or Android Termux
+      const isAndroid = process.platform === 'android' || Boolean(process.env.TERMUX_VERSION);
       const startCmd = process.platform === 'win32' ? `start "" "${playerUrl}"` :
-                       process.platform === 'darwin' ? `open "${playerUrl}"` : `xdg-open "${playerUrl}"`;
+                       process.platform === 'darwin' ? `open "${playerUrl}"` :
+                       isAndroid ? `termux-open-url "${playerUrl}" || xdg-open "${playerUrl}"` :
+                       `xdg-open "${playerUrl}"`;
       
       exec(startCmd, () => {});
 
