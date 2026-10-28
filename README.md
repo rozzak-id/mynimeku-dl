@@ -42,6 +42,8 @@ Animeku mendukung 7 provider website yang dikelompokkan berdasarkan kategori:
 - **Pencarian Terpadu**: Cari judul anime di semua provider sekaligus dalam satu pencarian.
 - **Beranda Rilis Terbaru**: Langsung lihat anime yang baru diperbarui hari ini layaknya feed beranda.
 - **Peralihan Sumber Cepat**: Ketik `:sumber` di terminal untuk berpindah website atau kategori.
+- **Riwayat Tontonan & Penanda Episode**: Ketik `:riwayat` atau `animeku history` untuk melihat dan melanjutkan episode terakhir yang ditonton.
+- **Pemutar Eksternal MPV & VLC**: Deteksi otomatis MPV dan VLC player untuk streaming langsung dari terminal.
 - **Nonton Langsung di Mini Player**: Tampilan Flat UI bersih di browser lokal tanpa iklan pop-up.
 - **Dukungan HLS Streaming**: Otomatis memutar stream berformat m3u8 dan mp4 secara langsung.
 - **Auto Resolver Gateway**: Melewati halaman gateway unduhan seperti MyDriveKu, Hepidrive, Ryuudrive, Pixeldrain, dan Gofile ke tautan file asli.
@@ -49,6 +51,7 @@ Animeku mendukung 7 provider website yang dikelompokkan berdasarkan kategori:
 - **Pilihan Kualitas Video**: Tersedia pilihan resolusi 1080P, 720P, 480P, dan 360P.
 - **Penyimpanan Otomatis**: Hasil unduhan langsung tersimpan di folder Downloads laptop, PC, atau memori HP.
 - **Resume Download**: Melanjutkan proses download yang terputus tanpa perlu mengulang dari nol.
+- **Pemeriksaan Pembaruan Otomatis**: Memberikan notifikasi di banner terminal jika rilis versi baru tersedia.
 
 ---
 
@@ -141,7 +144,7 @@ Setelah serial anime dipilih:
 
 ---
 
-### 3. Mode Perintah Langsung (CLI Command Line)
+### 3. Mode Perintah Langsung CLI
 
 Kamu juga dapat menjalankan perintah instan tanpa masuk ke menu interaktif:
 
@@ -154,6 +157,12 @@ Kamu juga dapat menjalankan perintah instan tanpa masuk ke menu interaktif:
   ```bash
   animeku search "naruto"
   animeku search "one piece" -p samehadaku
+  ```
+
+- **Riwayat Tontonan**:
+  ```bash
+  animeku history
+  animeku history --clear
   ```
 
 - **Nonton Langsung di Mini Player**:
@@ -178,7 +187,7 @@ Kamu juga dapat menjalankan perintah instan tanpa masuk ke menu interaktif:
 ```text
 mynimeku-dl/
 ├── assets/
-│   └── banner.jpg            # Banner visual repositori
+│   └── banner.svg            # Banner visual repositori Dark Flat UI
 ├── bin/
 │   └── index.js              # Entry point eksekusi terminal
 ├── src/
@@ -187,11 +196,14 @@ mynimeku-dl/
 │   │   ├── commands.js       # Argumen baris perintah Commander
 │   │   └── interactive.js    # Tampilan menu terminal interaktif
 │   ├── core/
+│   │   ├── history.js        # Manajemen riwayat tontonan dan resume episode
 │   │   ├── httpClient.js     # HTTP client dengan penanganan header dan 403 bypass
-│   │   └── resolver.js       # Engine pembuka direct link MP4 & HLS dari gateway
+│   │   ├── resolver.js       # Engine pembuka direct link MP4 & HLS dari gateway
+│   │   └── updater.js        # Pemeriksaan versi rilis terbaru GitHub
 │   ├── downloader/
 │   │   └── videoDownloader.js# Downloader dengan indikator progress dan resume support
 │   ├── player/
+│   │   ├── externalPlayer.js # Integrasi pemutar video eksternal MPV dan VLC
 │   │   └── miniPlayer.js     # Server mini player lokal bergaya Flat UI
 │   └── scrapers/
 │       ├── baseScraper.js    # Blueprint abstrak provider
@@ -202,6 +214,7 @@ mynimeku-dl/
 │       ├── nontonhentai.js   # Provider NontonHentai 18+
 │       ├── otakudesu.js      # Provider Otakudesu
 │       └── samehadaku.js     # Provider Samehadaku
+├── .npmignore                # Filter berkas rilis registry npm
 ├── LICENSE                   # Lisensi open-source MIT
 ├── package.json              # Konfigurasi package npm
 └── README.md                 # Dokumentasi proyek
