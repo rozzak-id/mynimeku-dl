@@ -5,6 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "bin": {
+    "animeku": "./bin/index.js",
+    "mynimeku": "./bin/index.js",
     "mynimeku-dl": "./bin/index.js",
     "nimeku": "./bin/index.js"
   },

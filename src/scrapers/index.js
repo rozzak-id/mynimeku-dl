@@ -1,16 +1,33 @@
 import { mynimeku, MyNimekuScraper, searchAnime, getLatestAnimeFeed, getSeriesDetails, getEpisodeDetails } from './mynimeku.js';
 import { otakudesu, OtakudesuScraper } from './otakudesu.js';
+import { samehadaku, SamehadakuScraper } from './samehadaku.js';
+import { gomunime, GomunimeScraper } from './gomunime.js';
 import { BaseScraper } from './baseScraper.js';
 
-export { BaseScraper, MyNimekuScraper, OtakudesuScraper };
-export { searchAnime, getLatestAnimeFeed, getSeriesDetails, getEpisodeDetails };
+export {
+  BaseScraper,
+  MyNimekuScraper,
+  OtakudesuScraper,
+  SamehadakuScraper,
+  GomunimeScraper,
+  mynimeku,
+  otakudesu,
+  samehadaku,
+  gomunime,
+  searchAnime,
+  getLatestAnimeFeed,
+  getSeriesDetails,
+  getEpisodeDetails
+};
 
 /** @type {Map<string, BaseScraper>} */
 const registry = new Map();
 
-// Register default built-in providers
+// Register built-in providers
 registry.set(mynimeku.id, mynimeku);
 registry.set(otakudesu.id, otakudesu);
+registry.set(samehadaku.id, samehadaku);
+registry.set(gomunime.id, gomunime);
 
 /**
  * Register a new anime scraper provider
@@ -24,7 +41,7 @@ export function registerProvider(provider) {
 }
 
 /**
- * Get provider by its unique identifier (e.g. 'mynimeku', 'otakudesu')
+ * Get provider by its unique identifier (e.g. 'mynimeku', 'otakudesu', 'samehadaku', 'gomunime')
  * @param {string} id
  * @returns {BaseScraper|undefined}
  */
@@ -83,7 +100,7 @@ export async function searchAllProviders(query) {
     try {
       return await p.search(query);
     } catch (err) {
-      // If one provider fails or times out, don't crash others
+      // If one provider fails, don't crash others
       return [];
     }
   });

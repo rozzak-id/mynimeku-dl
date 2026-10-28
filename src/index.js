@@ -1,5 +1,5 @@
 /**
- * MyNimeku & Multi-Provider Anime Downloader Library
+ * Animeku / MyNimeku Multi-Provider Anime Downloader Library
  */
 
 export { CONFIG, getDefaultDownloadDir } from './config.js';
@@ -14,6 +14,8 @@ export {
   BaseScraper,
   MyNimekuScraper,
   OtakudesuScraper,
+  SamehadakuScraper,
+  GomunimeScraper,
   registerProvider,
   getProvider,
   getAllProviders,
@@ -27,3 +29,5 @@ export {
 } from './scrapers/index.js';
 export { mynimeku } from './scrapers/mynimeku.js';
 export { otakudesu } from './scrapers/otakudesu.js';
+export { samehadaku } from './scrapers/samehadaku.js';
+export { gomunime } from './scrapers/gomunime.js';

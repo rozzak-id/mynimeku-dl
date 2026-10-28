@@ -27,6 +27,8 @@
 - 🌐 **Multi-Website Provider**: Mendukung scraping dan download dari berbagai website anime sekaligus:
   - **MyNimeku** (`https://www.mynimeku.com`)
   - **Otakudesu** (`https://otakudesu.blog`)
+  - **Samehadaku** (`https://samehadaku.li`)
+  - **Gomunime** (`https://ww2.gomunime.org`)
   - *(Mudah diperluas untuk website anime lainnya dengan arsitektur `BaseScraper`)*
 - 🔍 **Pencarian Terpadu (Multi-Search)**: Cari anime di semua website sekaligus hanya dengan satu kali ketik!
 - 🔀 **Peralihan Sumber Cepat**: Cukup ketik `:sumber` atau `:source` di terminal untuk beralih antar website anime favorit.
@@ -68,7 +70,7 @@
    ```bash
    npm link
    ```
-   Setelah di-link, kamu bisa langsung mengetik `nimeku` atau `mynimeku-dl` dari terminal manapun!
+   Setelah di-link, kamu bisa langsung mengetik **`animeku`** (atau `nimeku` / `mynimeku-dl`) dari terminal manapun!
 
 ---
 
