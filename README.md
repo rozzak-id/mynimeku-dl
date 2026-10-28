@@ -24,10 +24,16 @@
 
 ## 🌟 Fitur Unggulan
 
-- 🔎 **Pencarian Anime ala YouTube**: Cari judul anime apa saja langsung saat membuka CLI atau melalui search bar.
+- 🌐 **Multi-Website Provider**: Mendukung scraping dan download dari berbagai website anime sekaligus:
+  - **MyNimeku** (`https://www.mynimeku.com`)
+  - **Otakudesu** (`https://otakudesu.blog`)
+  - *(Mudah diperluas untuk website anime lainnya dengan arsitektur `BaseScraper`)*
+- 🔍 **Pencarian Terpadu (Multi-Search)**: Cari anime di semua website sekaligus hanya dengan satu kali ketik!
+- 🔀 **Peralihan Sumber Cepat**: Cukup ketik `:sumber` atau `:source` di terminal untuk beralih antar website anime favorit.
+- 🔗 **Auto-Detect Provider**: Cukup tempelkan link URL dari MyNimeku, Otakudesu, atau direct video stream; sistem otomatis mengenali dan memproses unduhan.
 - 🔥 **Beranda & Trending Feed**: Menampilkan daftar anime yang baru saja rilis / sedang tayang hari ini langsung di halaman utama CLI layaknya beranda YouTube.
 - 📁 **Otomatis Tersimpan di Folder Downloads**: Video otomatis tersimpan di folder `Downloads` laptop/PC kamu (`C:\Users\<user>\Downloads` atau `~/Downloads`), atau langsung di folder Download HP untuk pengguna Android (**Termux**), sehingga langsung muncul di galeri atau video player!
-- ⚡ **Auto-Resolver Gateway**: Secara otomatis melewati halaman perantara (seperti MyDriveKu) dan langsung mengarahkan ke link direct video stream (`video/mp4`).
+- ⚡ **Auto-Resolver Gateway**: Secara otomatis melewati halaman perantara (seperti MyDriveKu, Desustream, Hxfile) dan langsung mengarahkan ke link direct video stream (`video/mp4`).
 - 🎚️ **Multi-Resolusi**: Mendukung pilihan resolusi **360P**, **480P**, **720P (HD)**, hingga **1080P (FHD)**.
 - 📦 **Batch Downloader**: Unduh seluruh episode dalam satu serial anime sekaligus atau tentukan rentang tertentu (misal: Episode 1 s/d 12) dengan jeda aman antar episode.
 - 📊 **Progress Bar Interaktif**: Indikator unduhan real-time lengkap dengan persentase, kecepatan (MB/s), estimasi waktu selesai (ETA), dan ukuran file.

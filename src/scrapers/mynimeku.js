@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { getHtml } from '../core/httpClient.js';
 import { CONFIG } from '../config.js';
+import { BaseScraper } from './baseScraper.js';
 
 /**
  * Search anime series by query string
@@ -12,7 +13,8 @@ import { CONFIG } from '../config.js';
  *   type: string,
  *   status: string,
  *   rating: string,
- *   genres: string[]
+ *   genres: string[],
+ *   provider: string
  * }>>}
  */
 export async function searchAnime(query) {
@@ -47,7 +49,8 @@ export async function searchAnime(query) {
         type,
         status,
         rating,
-        genres
+        genres,
+        provider: 'MyNimeku'
       });
     }
   });
@@ -64,7 +67,8 @@ export async function searchAnime(query) {
  *   episodeUrl: string,
  *   thumbnail: string,
  *   type: string,
- *   status: string
+ *   status: string,
+ *   provider: string
  * }>>}
  */
 export async function getLatestAnimeFeed() {
@@ -100,11 +104,10 @@ export async function getLatestAnimeFeed() {
       let thumb = img.attr('data-src') || img.attr('src') || '';
       if (thumb.startsWith('//')) thumb = 'https:' + thumb;
 
-      const fullText = $el.text();
-      const status = fullText.includes('Completed') ? 'Completed' : (fullText.includes('On-Going') ? 'On-Going' : '');
-      const type = fullText.includes('TV') ? 'TV' : (fullText.includes('ONA') ? 'ONA' : (fullText.includes('OVA') ? 'OVA' : (fullText.includes('BD') ? 'BD' : 'Anime')));
+      const type = $el.find('.type, [class*="type"]').first().text().trim() || 'TV';
+      const status = $el.find('.status, [class*="status"]').first().text().trim() || 'On-Going';
 
-      if (title && seriesUrl && !feed.some(item => item.seriesUrl === seriesUrl)) {
+      if (title && epUrl && !feed.some(item => item.episodeUrl === epUrl)) {
         feed.push({
           title,
           seriesUrl,
@@ -112,7 +115,8 @@ export async function getLatestAnimeFeed() {
           episodeUrl: epUrl,
           thumbnail: thumb,
           type,
-          status
+          status,
+          provider: 'MyNimeku'
         });
       }
     }
@@ -122,108 +126,98 @@ export async function getLatestAnimeFeed() {
 }
 
 /**
- * Get series details and all available episodes
+ * Get series full details including episode list
  * @param {string} seriesUrl
  * @returns {Promise<{
  *   title: string,
  *   url: string,
- *   thumbnail: string,
  *   synopsis: string,
- *   status: string,
+ *   thumbnail: string,
  *   type: string,
+ *   status: string,
+ *   totalEpisodes: string,
+ *   duration: string,
+ *   rating: string,
  *   genres: string[],
  *   episodes: Array<{
- *     number: string,
  *     title: string,
  *     url: string,
+ *     number: string,
  *     date: string
- *   }>
+ *   }>,
+ *   provider: string
  * }>}
  */
 export async function getSeriesDetails(seriesUrl) {
   const html = await getHtml(seriesUrl);
   const $ = cheerio.load(html);
 
-  const title = $('h1.komik-series-header__title, h1.entry-title, h1').first().text().trim();
-  let thumbnail = $('.komik-series-header__cover img, .series-thumb img').first().attr('src') || '';
+  const title = $('h1.entry-title, .mynimeku-series-hero__title, h1').first().text().trim();
+  const synopsis = $('.mynimeku-series-hero__synopsis, .entry-content p, .synopsis').first().text().trim();
+  
+  let thumbnail = $('.mynimeku-series-hero__poster img, .thumb img').attr('src') || '';
   if (thumbnail.startsWith('//')) thumbnail = 'https:' + thumbnail;
 
-  const synopsis = $('.komik-series-desc__text, .series-synopsis, .entry-content').first().text().trim();
-
-  // Extract metadata info
-  let status = '';
   let type = '';
+  let status = '';
+  let totalEpisodes = '';
+  let duration = '';
+  let rating = '';
   const genres = [];
 
-  $('.komik-series-header__meta-item, .series-meta-item').each((_, el) => {
-    const text = $(el).text().trim();
+  $('.mynimeku-series-meta__item, .spe span').each((_, item) => {
+    const text = $(item).text().trim();
     if (text.includes('Status:')) status = text.replace('Status:', '').trim();
     if (text.includes('Type:')) type = text.replace('Type:', '').trim();
+    if (text.includes('Episodes:')) totalEpisodes = text.replace('Episodes:', '').trim();
+    if (text.includes('Duration:')) duration = text.replace('Duration:', '').trim();
+    if (text.includes('Score:') || text.includes('Rating:')) rating = text.replace(/Score:|Rating:/, '').trim();
   });
 
-  $('a[href*="/genre/"]').each((_, el) => {
-    const g = $(el).text().trim();
-    if (g && !genres.includes(g)) genres.push(g);
+  $('.mynimeku-series-genres a, .genxed a').each((_, g) => {
+    genres.push($(g).text().trim());
   });
 
-  // Extract episodes list
   const episodes = [];
-  $('a.komik-series-chapter-item').each((_, elem) => {
-    const $item = $(elem);
-    const url = $item.attr('href') || '';
-    const number = $item.attr('data-episode-number') || $item.find('.komik-series-chapter-item__num').text().trim();
-    const epTitle = $item.find('.komik-series-chapter-item__title').text().trim() || `Episode ${number}`;
-    const date = $item.find('.komik-series-chapter-item__date').text().trim();
 
-    if (url) {
+  $('.mynimeku-episode-list__item, .eplister ul li').each((_, ep) => {
+    const $ep = $(ep);
+    const $link = $ep.find('a');
+    const epUrl = $link.attr('href') || '';
+    const epTitle = $link.find('.mynimeku-episode-list__title').text().trim() || $link.text().trim();
+    const epDate = $ep.find('.mynimeku-episode-list__date').text().trim() || '';
+
+    const numMatch = epTitle.match(/Episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i);
+    const epNumber = numMatch ? numMatch[1] : (epTitle || '');
+
+    if (epUrl) {
       episodes.push({
-        number,
-        title: epTitle,
-        url,
-        date
+        title: epTitle || `Episode ${epNumber}`,
+        url: epUrl,
+        number: epNumber,
+        date: epDate
       });
     }
-  });
-
-  // If no chapter items found, fallback to searching episode links
-  if (episodes.length === 0) {
-    $('a[href*="/episode/"]').each((_, elem) => {
-      const url = $(elem).attr('href') || '';
-      const text = $(elem).text().trim();
-      const match = url.match(/episode-(\d+)/i) || text.match(/(?:ep|episode)\.?\s*(\d+)/i);
-      const number = match ? match[1] : '';
-      if (url && !episodes.some(e => e.url === url)) {
-        episodes.push({
-          number,
-          title: text || `Episode ${number}`,
-          url,
-          date: ''
-        });
-      }
-    });
-  }
-
-  // Sort episodes in ascending order (Ep 01 -> Ep N)
-  episodes.sort((a, b) => {
-    const numA = parseFloat(a.number) || 0;
-    const numB = parseFloat(b.number) || 0;
-    return numA - numB;
   });
 
   return {
     title,
     url: seriesUrl,
-    thumbnail,
     synopsis,
-    status,
+    thumbnail,
     type,
+    status,
+    totalEpisodes,
+    duration,
+    rating,
     genres,
-    episodes
+    episodes,
+    provider: 'MyNimeku'
   };
 }
 
 /**
- * Get episode details including download links and servers grouped by resolution
+ * Get episode details including download links and servers
  * @param {string} episodeUrl
  * @returns {Promise<{
  *   title: string,
@@ -231,46 +225,24 @@ export async function getSeriesDetails(seriesUrl) {
  *   seriesUrl: string,
  *   episodeNumber: string,
  *   downloads: Record<string, Array<{ server: string, url: string }>>,
- *   availableResolutions: string[]
+ *   availableResolutions: string[],
+ *   playerServers: Array<{ host: string, type: string, url: string }>,
+ *   provider: string
  * }>}
  */
 export async function getEpisodeDetails(episodeUrl) {
   const html = await getHtml(episodeUrl);
   const $ = cheerio.load(html);
 
-  // Extract accurate episode title
-  let title = '';
-  const ogTitle = $('meta[property="og:title"]').attr('content');
-  if (ogTitle) {
-    title = ogTitle.replace(/\s*-\s*MyNimeku.*$/i, '').trim();
-  }
-  if (!title) {
-    const docTitle = $('title').text().trim();
-    if (docTitle) {
-      title = docTitle.replace(/\s*-\s*MyNimeku.*$/i, '').trim();
-    }
-  }
-  if (!title) {
-    $('h1').each((_, el) => {
-      const t = $(el).text().trim();
-      if (t && !/^mynimeku$/i.test(t) && !title) {
-        title = t;
-      }
-    });
-  }
-  if (!title) {
-    title = $('h1').first().text().trim() || 'Episode';
-  }
-
-  const seriesUrl = $('a[href*="/series/"]').first().attr('href') || '';
-
-  const numMatch = episodeUrl.match(/episode-(\d+)/i) || title.match(/Episode\s*(\d+)/i);
-  const episodeNumber = numMatch ? numMatch[1] : '';
+  const title = $('h1.mynimeku-episode-header__title, h1.entry-title, h1').first().text().trim();
+  const seriesUrl = $('.mynimeku-episode-header__series-link, .breadcrumbs a[href*="/series/"]').attr('href') || '';
+  
+  const epNumMatch = title.match(/Episode\s*(\d+)/i) || episodeUrl.match(/episode-(\d+)/i);
+  const episodeNumber = epNumMatch ? epNumMatch[1] : '';
 
   /** @type {Record<string, Array<{ server: string, url: string }>>} */
   const downloads = {};
 
-  // Parse download cards
   $('section.mynimeku-episode-downloads .mynimeku-episode-download-card').each((_, card) => {
     const $card = $(card);
     const resRaw = $card.find('.mynimeku-episode-download-card__res').text().trim().toUpperCase();
@@ -293,7 +265,6 @@ export async function getEpisodeDetails(episodeUrl) {
     });
   });
 
-  // Extract player server buttons if user wants streaming URLs
   const playerServers = [];
   $('button[data-player-url]').each((_, btn) => {
     const $b = $(btn);
@@ -313,6 +284,40 @@ export async function getEpisodeDetails(episodeUrl) {
     episodeNumber,
     downloads,
     availableResolutions,
-    playerServers
+    playerServers,
+    provider: 'MyNimeku'
   };
 }
+
+export class MyNimekuScraper extends BaseScraper {
+  constructor() {
+    super({
+      id: 'mynimeku',
+      name: 'MyNimeku',
+      baseUrl: CONFIG.BASE_URL
+    });
+  }
+
+  canHandleUrl(url) {
+    if (!url) return false;
+    return url.includes('mynimeku.com');
+  }
+
+  async search(query) {
+    return searchAnime(query);
+  }
+
+  async getLatestFeed() {
+    return getLatestAnimeFeed();
+  }
+
+  async getSeriesDetails(url) {
+    return getSeriesDetails(url);
+  }
+
+  async getEpisodeDetails(url) {
+    return getEpisodeDetails(url);
+  }
+}
+
+export const mynimeku = new MyNimekuScraper();

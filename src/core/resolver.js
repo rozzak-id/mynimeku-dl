@@ -17,12 +17,25 @@ import { CONFIG } from '../config.js';
 export async function resolveVideoUrl(url, options = {}) {
   const referer = options.referer || CONFIG.BASE_URL;
 
-  // 1. Check if URL is from file.mydriveku.my.id
+  // 1. Check if URL is an Otakudesu Desustream redirect link
+  if (url.includes('desustream.com')) {
+    try {
+      const res = await request(url, { method: 'GET', redirect: 'manual' });
+      const loc = res.headers.get('location');
+      if (loc) {
+        url = loc;
+      }
+    } catch {
+      // proceed with original url
+    }
+  }
+
+  // 2. Check if URL is from file.mydriveku.my.id
   if (url.includes('mydriveku.my.id')) {
     return await resolveMyDriveKu(url, referer);
   }
 
-  // 2. Generic direct video URL handler
+  // 3. Generic direct video URL handler
   return await resolveGenericVideo(url);
 }
 
