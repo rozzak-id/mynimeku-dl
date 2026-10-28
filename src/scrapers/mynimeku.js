@@ -152,10 +152,11 @@ export async function getSeriesDetails(seriesUrl) {
   const html = await getHtml(seriesUrl);
   const $ = cheerio.load(html);
 
-  const title = $('h1.entry-title, .mynimeku-series-hero__title, h1').first().text().trim();
-  const synopsis = $('.mynimeku-series-hero__synopsis, .entry-content p, .synopsis').first().text().trim();
+  const title = $('h1.komik-series-hero__title, h1.entry-title, .mynimeku-series-hero__title').first().text().trim() ||
+                $('title').text().replace(/\s*-\s*MyNimeku.*$/i, '').trim();
+  const synopsis = $('.komik-series-hero__synopsis, .mynimeku-series-hero__synopsis, .entry-content p, .synopsis').first().text().trim();
   
-  let thumbnail = $('.mynimeku-series-hero__poster img, .thumb img').attr('src') || '';
+  let thumbnail = $('.komik-series-hero__poster img, .mynimeku-series-hero__poster img, .thumb img').attr('src') || '';
   if (thumbnail.startsWith('//')) thumbnail = 'https:' + thumbnail;
 
   let type = '';
@@ -165,7 +166,7 @@ export async function getSeriesDetails(seriesUrl) {
   let rating = '';
   const genres = [];
 
-  $('.mynimeku-series-meta__item, .spe span').each((_, item) => {
+  $('.komik-series-meta__item, .mynimeku-series-meta__item, .spe span').each((_, item) => {
     const text = $(item).text().trim();
     if (text.includes('Status:')) status = text.replace('Status:', '').trim();
     if (text.includes('Type:')) type = text.replace('Type:', '').trim();
@@ -174,23 +175,30 @@ export async function getSeriesDetails(seriesUrl) {
     if (text.includes('Score:') || text.includes('Rating:')) rating = text.replace(/Score:|Rating:/, '').trim();
   });
 
-  $('.mynimeku-series-genres a, .genxed a').each((_, g) => {
+  $('.komik-series-genres a, .mynimeku-series-genres a, .genxed a').each((_, g) => {
     genres.push($(g).text().trim());
   });
 
   const episodes = [];
 
-  $('.mynimeku-episode-list__item, .eplister ul li').each((_, ep) => {
+  // Parse episode list items
+  $('a[href*="/episode/"], .komik-series-chapter-list a, .mynimeku-episode-list__item, .eplister ul li').each((_, ep) => {
     const $ep = $(ep);
-    const $link = $ep.find('a');
+    const $link = $ep.is('a') ? $ep : $ep.find('a');
     const epUrl = $link.attr('href') || '';
-    const epTitle = $link.find('.mynimeku-episode-list__title').text().trim() || $link.text().trim();
-    const epDate = $ep.find('.mynimeku-episode-list__date').text().trim() || '';
+    if (!epUrl || !epUrl.includes('/episode/')) return;
 
-    const numMatch = epTitle.match(/Episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i);
-    const epNumber = numMatch ? numMatch[1] : (epTitle || '');
+    let epTitle = $link.find('.komik-series-chapter-list__name, .mynimeku-episode-list__title').text().trim() ||
+                  $link.text().trim().replace(/\s+/g, ' ');
+    const epDate = $ep.find('.komik-series-chapter-list__date, .mynimeku-episode-list__date').text().trim() || '';
 
-    if (epUrl) {
+    // Clean up "NEW" badges or redundant numbers
+    epTitle = epTitle.replace(/\bNEW\b/gi, '').trim();
+
+    const numMatch = epTitle.match(/Episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i) || epTitle.match(/\b(\d+)\b/);
+    const epNumber = numMatch ? numMatch[1] : (episodes.length + 1).toString();
+
+    if (!episodes.some(e => e.url === epUrl)) {
       episodes.push({
         title: epTitle || `Episode ${epNumber}`,
         url: epUrl,
@@ -200,6 +208,9 @@ export async function getSeriesDetails(seriesUrl) {
     }
   });
 
+  // Sort episodes in ascending order (Episode 1, Episode 2, ...)
+  episodes.sort((a, b) => (parseFloat(a.number) || 0) - (parseFloat(b.number) || 0));
+
   return {
     title,
     url: seriesUrl,
@@ -207,7 +218,7 @@ export async function getSeriesDetails(seriesUrl) {
     thumbnail,
     type,
     status,
-    totalEpisodes,
+    totalEpisodes: episodes.length ? episodes.length.toString() : totalEpisodes,
     duration,
     rating,
     genres,
@@ -234,8 +245,9 @@ export async function getEpisodeDetails(episodeUrl) {
   const html = await getHtml(episodeUrl);
   const $ = cheerio.load(html);
 
-  const title = $('h1.mynimeku-episode-header__title, h1.entry-title, h1').first().text().trim();
-  const seriesUrl = $('.mynimeku-episode-header__series-link, .breadcrumbs a[href*="/series/"]').attr('href') || '';
+  const title = $('h1.mynimeku-episode-head__title, h1.entry-title:not(.title), .post-title').first().text().trim() ||
+                $('title').text().replace(/\s*-\s*MyNimeku.*$/i, '').trim();
+  const seriesUrl = $('.mynimeku-episode-header__series-link, .breadcrumbs a[href*="/series/"], a[href*="/series/"]').attr('href') || '';
   
   const epNumMatch = title.match(/Episode\s*(\d+)/i) || episodeUrl.match(/episode-(\d+)/i);
   const episodeNumber = epNumMatch ? epNumMatch[1] : '';
