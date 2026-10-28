@@ -149,8 +149,23 @@ export async function getLatestAnimeFeed() {
  * }>}
  */
 export async function getSeriesDetails(seriesUrl) {
-  const html = await getHtml(seriesUrl);
-  const $ = cheerio.load(html);
+  let targetUrl = seriesUrl;
+  let html = await getHtml(targetUrl);
+  let $ = cheerio.load(html);
+
+  // If given an episode URL instead of a series page, resolve the real series URL
+  if (targetUrl.includes('/episode/')) {
+    const parentSeries = $('.mynimeku-episode-header__series-link, .breadcrumbs a[href*="/series/"], a[href*="/series/"]').first().attr('href');
+    if (parentSeries) {
+      try {
+        targetUrl = parentSeries;
+        html = await getHtml(targetUrl);
+        $ = cheerio.load(html);
+      } catch {
+        // fallback
+      }
+    }
+  }
 
   const title = $('h1.komik-series-hero__title, h1.entry-title, .mynimeku-series-hero__title').first().text().trim() ||
                 $('title').text().replace(/\s*-\s*MyNimeku.*$/i, '').trim();
@@ -211,9 +226,19 @@ export async function getSeriesDetails(seriesUrl) {
   // Sort episodes in ascending order (Episode 1, Episode 2, ...)
   episodes.sort((a, b) => (parseFloat(a.number) || 0) - (parseFloat(b.number) || 0));
 
+  // Fallback if single episode
+  if (episodes.length === 0) {
+    episodes.push({
+      title: title || 'Episode 1',
+      url: targetUrl,
+      number: '1',
+      date: ''
+    });
+  }
+
   return {
     title,
-    url: seriesUrl,
+    url: targetUrl,
     synopsis,
     thumbnail,
     type,

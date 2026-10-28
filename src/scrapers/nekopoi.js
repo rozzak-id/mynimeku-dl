@@ -2,7 +2,13 @@ import * as cheerio from 'cheerio';
 import { request } from '../core/httpClient.js';
 import { BaseScraper } from './baseScraper.js';
 
-const NEKOPOI_DEFAULT_URL = process.env.NEKOPOI_BASE_URL || 'https://nekopoi.care';
+const NEKOPOI_DOMAINS = [
+  process.env.NEKOPOI_BASE_URL,
+  'https://nekopoi.care',
+  'https://nekopoi.app',
+  'https://nekopoi.stream'
+].filter(Boolean);
+const NEKOPOI_DEFAULT_URL = NEKOPOI_DOMAINS[0];
 const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
 
 export class NekopoiScraper extends BaseScraper {
@@ -18,24 +24,46 @@ export class NekopoiScraper extends BaseScraper {
 
   canHandleUrl(url) {
     if (!url) return false;
-    return url.includes('nekopoi.care') || url.includes('nekopoi');
+    return url.includes('nekopoi');
   }
 
   /**
-   * Helper to fetch HTML from Nekopoi with mobile headers
+   * Helper to fetch HTML from Nekopoi with mobile headers and domain mirror fallback
    * @param {string} url
    */
   async fetchNekopoiHtml(url) {
-    const res = await request(url, {
-      headers: {
-        'User-Agent': MOBILE_UA,
-        'Referer': ''
+    let lastError = null;
+
+    // Build URL candidates using available mirrors
+    const candidates = [url];
+    try {
+      const parsed = new URL(url);
+      for (const domain of NEKOPOI_DOMAINS) {
+        const altUrl = `${domain}${parsed.pathname}${parsed.search}`;
+        if (!candidates.includes(altUrl)) {
+          candidates.push(altUrl);
+        }
       }
-    });
-    if (!res.ok) {
-      throw new Error(`Gagal memuat Nekopoi [${res.status}] dari ${url}`);
+    } catch {}
+
+    for (const target of candidates) {
+      try {
+        const res = await request(target, {
+          headers: {
+            'User-Agent': MOBILE_UA,
+            'Referer': ''
+          }
+        });
+        if (res.ok) {
+          return await res.text();
+        }
+        lastError = new Error(`Gagal memuat Nekopoi [${res.status}] dari ${target}`);
+      } catch (err) {
+        lastError = err;
+      }
     }
-    return await res.text();
+
+    throw lastError || new Error(`Gagal memuat Nekopoi dari ${url}`);
   }
 
   /**

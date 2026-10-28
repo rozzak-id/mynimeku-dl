@@ -50,7 +50,7 @@ export function setupCommands() {
   program
     .command('search <keyword>')
     .description('Cari anime berdasarkan kata kunci judul')
-    .option('-p, --provider <provider>', 'Pilihan website provider: mynimeku, otakudesu, samehadaku, gomunime, layaranime, nontonhentai, all', 'all_anime')
+    .option('-p, --provider <provider>', 'Pilihan website provider: mynimeku, otakudesu, samehadaku, gomunime, layaranime, nontonhentai, nekopoi, all', 'all_anime')
     .action(async (keyword, options) => {
       try {
         const provChoice = options.provider.toLowerCase();

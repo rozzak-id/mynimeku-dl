@@ -108,8 +108,9 @@ export class LayaranimeScraper extends BaseScraper {
    * @param {string} seriesUrl
    */
   async getSeriesDetails(seriesUrl) {
-    const html = await getHtml(seriesUrl);
-    const $ = cheerio.load(html);
+    let targetUrl = seriesUrl;
+    let html = await getHtml(targetUrl);
+    let $ = cheerio.load(html);
 
     const title = $('h1.entry-title, h1').first().text().trim();
     const synopsis = $('.desc p, .entry-content p, .sinopc p').first().text().trim();
@@ -121,11 +122,15 @@ export class LayaranimeScraper extends BaseScraper {
     $('a[href*="/episode-"], a[href*="/nonton-"]').each((_, el) => {
       const $a = $(el);
       let epUrl = $a.attr('href') || '';
+      if (!epUrl || epUrl.includes('#') || epUrl.includes('respond')) return;
       if (epUrl.startsWith('/')) epUrl = `${this.baseUrl}${epUrl}`;
 
-      const epTitle = $a.text().trim().replace(/\s+/g, ' ');
-      const numMatch = epTitle.match(/Episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i);
-      const epNumber = numMatch ? numMatch[1] : '';
+      let epTitle = $a.text().trim().replace(/\s+/g, ' ');
+      // Clean "Terbaru (500)" -> "500"
+      epTitle = epTitle.replace(/Terbaru\s*\(/i, '').replace(/\)/g, '').trim();
+
+      const numMatch = epTitle.match(/Episode\s*(\d+(?:\.\d+)?)/i) || epUrl.match(/episode-(\d+(?:\.\d+)?)/i) || epTitle.match(/\b(\d+)\b/);
+      const epNumber = numMatch ? numMatch[1] : (episodes.length + 1).toString();
 
       if (epUrl && !episodes.some(e => e.url === epUrl)) {
         episodes.push({
@@ -137,9 +142,22 @@ export class LayaranimeScraper extends BaseScraper {
       }
     });
 
+    // Sort ascending
+    episodes.sort((a, b) => (parseFloat(a.number) || 0) - (parseFloat(b.number) || 0));
+
+    // Fallback if single episode
+    if (episodes.length === 0) {
+      episodes.push({
+        title: title || 'Episode 1',
+        url: targetUrl,
+        number: '1',
+        date: ''
+      });
+    }
+
     return {
       title,
-      url: seriesUrl,
+      url: targetUrl,
       synopsis,
       thumbnail,
       type: 'TV',

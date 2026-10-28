@@ -109,8 +109,23 @@ export class GomunimeScraper extends BaseScraper {
    * @param {string} seriesUrl
    */
   async getSeriesDetails(seriesUrl) {
-    const html = await getHtml(seriesUrl);
-    const $ = cheerio.load(html);
+    let targetUrl = seriesUrl;
+    let html = await getHtml(targetUrl);
+    let $ = cheerio.load(html);
+
+    // If given an episode URL instead of a series page, resolve the real series URL
+    if (targetUrl.includes('/nonton/')) {
+      const parentSeries = $('a[href*="/anime/"]').first().attr('href');
+      if (parentSeries) {
+        try {
+          targetUrl = parentSeries;
+          html = await getHtml(targetUrl);
+          $ = cheerio.load(html);
+        } catch {
+          // fallback
+        }
+      }
+    }
 
     const title = $('h1').first().text().replace(/Sub Indo.*$/i, '').trim();
     const synopsis = $('.synopsis p, .entry-content p, .desc p').first().text().trim();
@@ -122,12 +137,15 @@ export class GomunimeScraper extends BaseScraper {
     $('a[href*="/nonton/"]').each((_, el) => {
       const $a = $(el);
       const epUrl = $a.attr('href') || '';
+      if (!epUrl || epUrl.includes('#') || epUrl.includes('respond') || epUrl.includes('comment')) return;
+
       const epText = $a.text().trim().replace(/\s+/g, ' ');
+      if (!epText || /^cancel/i.test(epText)) return;
 
-      const numMatch = epText.match(/Episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i);
-      const epNumber = numMatch ? numMatch[1] : '';
+      const numMatch = epText.match(/Episode\s*(\d+(?:\.\d+)?)/i) || epUrl.match(/episode-(\d+(?:\.\d+)?)/i) || epText.match(/\b(\d+)\b/);
+      const epNumber = numMatch ? numMatch[1] : (episodes.length + 1).toString();
 
-      if (epUrl && !episodes.some(e => e.url === epUrl)) {
+      if (!episodes.some(e => e.url === epUrl)) {
         episodes.push({
           title: epText || `Episode ${epNumber}`,
           url: epUrl,
@@ -137,9 +155,22 @@ export class GomunimeScraper extends BaseScraper {
       }
     });
 
+    // Sort ascending
+    episodes.sort((a, b) => (parseFloat(a.number) || 0) - (parseFloat(b.number) || 0));
+
+    // Fallback if single episode
+    if (episodes.length === 0) {
+      episodes.push({
+        title: title || 'Episode 1',
+        url: targetUrl,
+        number: '1',
+        date: ''
+      });
+    }
+
     return {
       title,
-      url: seriesUrl,
+      url: targetUrl,
       synopsis,
       thumbnail,
       type: 'TV',

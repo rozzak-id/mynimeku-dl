@@ -237,8 +237,24 @@ export async function launchMiniPlayer({ title, videoUrl, referer, sourceName = 
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const player = document.getElementById('animePlayer');
+    const streamUrl = '${videoUrl}';
+
+    if (streamUrl.includes('.m3u8')) {
+      if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true });
+        hls.loadSource(streamUrl);
+        hls.attachMedia(player);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          player.play().catch(() => {});
+        });
+      } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+        player.src = streamUrl;
+      }
+    }
+
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
         e.preventDefault();

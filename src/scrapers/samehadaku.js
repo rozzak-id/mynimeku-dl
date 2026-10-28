@@ -101,8 +101,23 @@ export class SamehadakuScraper extends BaseScraper {
    * @param {string} seriesUrl
    */
   async getSeriesDetails(seriesUrl) {
-    const html = await getHtml(seriesUrl);
-    const $ = cheerio.load(html);
+    let targetUrl = seriesUrl;
+    let html = await getHtml(targetUrl);
+    let $ = cheerio.load(html);
+
+    // If given an episode URL instead of a series page, resolve the real series URL
+    if (!targetUrl.includes('/anime/')) {
+      const parentSeries = $('a[href*="/anime/"]').first().attr('href');
+      if (parentSeries) {
+        try {
+          targetUrl = parentSeries;
+          html = await getHtml(targetUrl);
+          $ = cheerio.load(html);
+        } catch {
+          // fallback to current page
+        }
+      }
+    }
 
     const title = $('h1.entry-title, h1').first().text().trim();
     const synopsis = $('.entry-content p, .desc p').first().text().trim();
@@ -112,15 +127,18 @@ export class SamehadakuScraper extends BaseScraper {
     const episodes = [];
 
     // Parse all episode links on series page
-    $('a[href*="-episode-"]').each((_, el) => {
+    $('.lstepsiode ul li a, .episodelist ul li a, .eplister ul li a, a[href*="-episode-"]').each((_, el) => {
       const $a = $(el);
       const epUrl = $a.attr('href') || '';
+      if (!epUrl || epUrl.includes('#') || epUrl.includes('respond') || epUrl.includes('/anime/')) return;
+
       const epTitle = $a.text().trim().replace(/\s+/g, ' ');
+      if (!epTitle || /^prev|^next/i.test(epTitle)) return;
 
-      const numMatch = epTitle.match(/Episode\s*(\d+)/i) || epUrl.match(/episode-(\d+)/i);
-      const epNumber = numMatch ? numMatch[1] : '';
+      const numMatch = epTitle.match(/Episode\s*(\d+(?:\.\d+)?)/i) || epTitle.match(/Eps?\s*(\d+(?:\.\d+)?)/i) || epUrl.match(/episode-(\d+(?:\.\d+)?)/i);
+      const epNumber = numMatch ? numMatch[1] : (episodes.length + 1).toString();
 
-      if (epUrl && !episodes.some(e => e.url === epUrl)) {
+      if (!episodes.some(e => e.url === epUrl)) {
         episodes.push({
           title: epTitle || `Episode ${epNumber}`,
           url: epUrl,
@@ -130,9 +148,22 @@ export class SamehadakuScraper extends BaseScraper {
       }
     });
 
+    // Sort ascending
+    episodes.sort((a, b) => (parseFloat(a.number) || 0) - (parseFloat(b.number) || 0));
+
+    // Fallback if single episode
+    if (episodes.length === 0) {
+      episodes.push({
+        title: title || 'Episode 1',
+        url: targetUrl,
+        number: '1',
+        date: ''
+      });
+    }
+
     return {
       title,
-      url: seriesUrl,
+      url: targetUrl,
       synopsis,
       thumbnail,
       type: 'TV',
