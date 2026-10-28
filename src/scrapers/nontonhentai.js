@@ -205,22 +205,24 @@ export class NontonHentaiScraper extends BaseScraper {
       });
     });
 
-    // 2. Generic download link fallback
-    $('.download a, .link-download a, a[href*="hepidrive"], a[href*="drive.google"], a[href*="mega.nz"]').each((_, a) => {
-      const dlUrl = $(a).attr('href') || '';
-      if (!dlUrl) return;
-      const serverName = $(a).text().trim() || 'LOKAL';
-      if (!downloads['720P'].some(s => s.url === dlUrl)) {
-        downloads['720P'].push({
-          server: serverName.toUpperCase(),
-          url: dlUrl
-        });
-      }
-    });
-
-    // 3. Fallback to stream embed if no direct downloads exist
+    // 2. Generic download link fallback if structured box is missing
     const totalFound = Object.values(downloads).reduce((acc, curr) => acc + curr.length, 0);
     if (totalFound === 0) {
+      $('.download a, .link-download a, a[href*="hepidrive"], a[href*="drive.google"], a[href*="mega.nz"]').each((_, a) => {
+        const dlUrl = $(a).attr('href') || '';
+        if (!dlUrl) return;
+        const serverName = $(a).text().trim() || 'LOKAL';
+        if (!downloads['720P'].some(s => s.url === dlUrl)) {
+          downloads['720P'].push({
+            server: serverName.toUpperCase(),
+            url: dlUrl
+          });
+        }
+      });
+    }
+
+    // 3. Fallback to stream embed if no direct downloads exist
+    if (Object.values(downloads).every(arr => arr.length === 0)) {
       $('iframe[src]').each((_, el) => {
         const src = $(el).attr('src') || '';
         if (src && !src.includes('facebook') && !src.includes('twitter')) {

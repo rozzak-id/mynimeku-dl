@@ -34,6 +34,8 @@ export function showBanner() {
   let sourceLabel = '';
   if (activeProviderId === 'all_anime') {
     sourceLabel = pc.green('🌐 Semua Sumber Anime');
+  } else if (activeProviderId === 'all_mature') {
+    sourceLabel = pc.red('🔞 Semua Sumber Dewasa 18+');
   } else if (activeProviderId === 'all') {
     sourceLabel = pc.yellow('🌟 Semua Sumber Keseluruhan');
   } else {
@@ -142,6 +144,10 @@ async function handleSwitchSource() {
       value: 'separator',
       disabled: true
     },
+    {
+      name: `🔞 ${pc.bold(pc.red('Semua Sumber Dewasa 18+'))}`,
+      value: 'all_mature'
+    },
     ...matureProviders.map(p => ({
       name: `🔞 ${pc.bold(pc.red(p.name))} ${pc.dim(`— ${p.description}`)}`,
       value: p.id
@@ -155,7 +161,7 @@ async function handleSwitchSource() {
   });
 
   activeProviderId = selected;
-  console.log(pc.green(`✔ Sumber berhasil diubah ke: ${activeProviderId === 'all_anime' ? 'Semua Anime Umum' : getProvider(activeProviderId)?.name}\n`));
+  console.log(pc.green(`✔ Sumber berhasil diubah ke: ${activeProviderId === 'all_anime' ? 'Semua Anime' : activeProviderId === 'all_mature' ? 'Semua Dewasa 18+' : getProvider(activeProviderId)?.name}\n`));
 }
 
 /**
@@ -168,6 +174,9 @@ async function handleSearchKeyword(keyword) {
   if (activeProviderId === 'all_anime') {
     console.log(pc.cyan(`\n🔍 Menelusuri "${keyword}" di seluruh website anime...`));
     results = await searchAllProviders(keyword, 'anime');
+  } else if (activeProviderId === 'all_mature') {
+    console.log(pc.cyan(`\n🔍 Menelusuri "${keyword}" di seluruh website dewasa 18+...`));
+    results = await searchAllProviders(keyword, 'mature');
   } else if (activeProviderId === 'all') {
     console.log(pc.cyan(`\n🔍 Menelusuri "${keyword}" di semua sumber...`));
     results = await searchAllProviders(keyword, 'all');
@@ -215,7 +224,9 @@ async function handleSearchKeyword(keyword) {
  * Handle Homepage Feed (Latest Updates)
  */
 async function handleHomepageFeed() {
-  const provider = activeProviderId.startsWith('all') ? getDefaultProvider() : (getProvider(activeProviderId) || getDefaultProvider());
+  const provider = activeProviderId === 'all_mature'
+    ? (getProvider('nontonhentai') || getProvider('nekopoi'))
+    : (activeProviderId.startsWith('all') ? getDefaultProvider() : (getProvider(activeProviderId) || getDefaultProvider()));
   console.log(pc.cyan(`\n🔥 Mengambil daftar update anime terbaru dari ${provider.name}...`));
 
   let feed = [];
@@ -355,15 +366,24 @@ async function processEpisodeAction(episodeUrl, seriesTitle, passedProvider) {
   if (!targetServer) targetServer = availableServers[0];
 
   if (availableServers.length > 1) {
+    const nameCounts = {};
+    const serverChoices = availableServers.map(s => {
+      const baseName = s.server || 'SERVER';
+      nameCounts[baseName] = (nameCounts[baseName] || 0) + 1;
+      const count = nameCounts[baseName];
+      const displayName = availableServers.filter(x => x.server === baseName).length > 1
+        ? `${baseName} ${count}`
+        : baseName;
+      const sizeInfo = s.size ? pc.dim(` [${s.size}]`) : '';
+      return {
+        name: `${pc.bold(displayName)}${sizeInfo}`,
+        value: s
+      };
+    });
+
     const serverChoice = await select({
       message: `Pilih server untuk resolusi ${selectedRes}:`,
-      choices: availableServers.map(s => {
-        const sizeInfo = s.size ? pc.dim(` [${s.size}]`) : '';
-        return {
-          name: `${pc.bold(s.server)}${sizeInfo}`,
-          value: s
-        };
-      }),
+      choices: serverChoices,
       pageSize: 8
     });
     targetServer = serverChoice;

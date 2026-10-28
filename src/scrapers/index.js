@@ -4,6 +4,7 @@ import { samehadaku, SamehadakuScraper } from './samehadaku.js';
 import { gomunime, GomunimeScraper } from './gomunime.js';
 import { layaranime, LayaranimeScraper } from './layaranime.js';
 import { nontonhentai, NontonHentaiScraper } from './nontonhentai.js';
+import { nekopoi, NekopoiScraper } from './nekopoi.js';
 import { BaseScraper } from './baseScraper.js';
 
 export {
@@ -14,12 +15,14 @@ export {
   GomunimeScraper,
   LayaranimeScraper,
   NontonHentaiScraper,
+  NekopoiScraper,
   mynimeku,
   otakudesu,
   samehadaku,
   gomunime,
   layaranime,
   nontonhentai,
+  nekopoi,
   searchAnime,
   getLatestAnimeFeed,
   getSeriesDetails,
@@ -36,6 +39,7 @@ registry.set(samehadaku.id, samehadaku);
 registry.set(gomunime.id, gomunime);
 registry.set(layaranime.id, layaranime);
 registry.set(nontonhentai.id, nontonhentai);
+registry.set(nekopoi.id, nekopoi);
 
 /**
  * Register a new anime scraper provider
